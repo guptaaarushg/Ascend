@@ -1,0 +1,2 @@
+- Service worker caches only immutable files (/assets/*, icons, fonts) and unregisters in dev; caching changeable scripts served stale blank pages.
+- Render the Life Path visualization with React Three Fiber while keeping controls and milestone details in accessible DOM UI, because CSS-only perspective was fragile and hard to use.

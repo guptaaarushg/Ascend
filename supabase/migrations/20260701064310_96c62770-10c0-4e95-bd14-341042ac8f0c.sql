@@ -1,0 +1,1 @@
+ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS is_future boolean NOT NULL DEFAULT false; ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS future_reason text; ALTER TABLE public.matches ADD COLUMN IF NOT EXISTS ready_in text;
