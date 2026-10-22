@@ -16,6 +16,7 @@
  */
 
 import { cosine, embed } from "@/lib/semantic";
+import { locationFit, parsePlace, type Place } from "@/lib/location";
 
 export type RankableOpportunity = {
   id: string;
@@ -34,6 +35,8 @@ export type RankableOpportunity = {
   travel_required?: boolean | null;
   format?: string | null;
   deadline?: string | null;
+  location?: string | null;
+  remote?: boolean | null;
 };
 
 export type RankProfile = {
@@ -64,6 +67,18 @@ const STOPWORDS = new Set([
   "their", "students", "student", "program", "programs", "opportunity", "opportunities",
   "national", "school", "college", "university", "high", "summer", "youth", "must", "be",
 ]);
+
+const placeCache = new Map<string, Place>();
+function placeFor(p: RankProfile): Place {
+  const key = `${p.location ?? ""}|${p.country ?? ""}`;
+  let place = placeCache.get(key);
+  if (!place) {
+    place = parsePlace(p.location, p.country);
+    if (placeCache.size > 500) placeCache.clear();
+    placeCache.set(key, place);
+  }
+  return place;
+}
 
 export function tokenize(text: string): string[] {
   return text
@@ -227,6 +242,8 @@ export function preRankScore(
   if (p.foster_youth_status && /foster|ward of the (state|court)|etv\b/i.test(oppText(o))) score += 12;
   if (p.housing_insecure_status && /homeless|housing insecur|mckinney|unaccompanied youth/i.test(oppText(o))) score += 12;
   if (p.immigration_status_note && /(undocumented|daca|dream(er)?s?\.?us|no citizenship requirement|regardless of (immigration )?status)/i.test(oppText(o))) score += 12;
+
+  score += locationFit(placeFor(p), o).score;
 
   // 4. Named-college alignment.
   const colleges = [...(p.dream_colleges ?? []), ...(p.target_colleges ?? [])].filter(Boolean);

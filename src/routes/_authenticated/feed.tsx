@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { OPPORTUNITY_CATEGORIES, categoryLabel, normalizeCategory, deadlineLabel } from "@/lib/categories";
 import { normalizeOpportunityValue, formatOpportunityValue } from "@/lib/opportunity-value";
 import { isZeroBarrier } from "@/lib/barriers";
+import { hasPlace, isOnline, locationFit, parsePlace, type Place } from "@/lib/location";
 import { BarrierRow } from "@/components/opportunity/barrier-row";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ type MatchRow = {
     value_usd: number | null; underrepresented: boolean; competitiveness: string | null;
     application_fee: number | null; fee_waiver_available: boolean | null;
     travel_required: boolean | null; equipment_needed: string | null; format: string | null;
+    remote: boolean | null;
   };
 };
 
@@ -51,6 +53,8 @@ function Feed() {
   const [awardFilter, setAwardFilter] = useState<"all" | "award">("all");
   const [compFilter, setCompFilter] = useState<string>("all");
   const [underrepOnly, setUnderrepOnly] = useState(false);
+  const [nearOnly, setNearOnly] = useState(false);
+  const [userPlace, setUserPlace] = useState<Place | null>(null);
   const [firstName, setFirstName] = useState<string>("");
   // Sticky per user: a $0-barrier requirement is a real constraint, not a mood.
   const [zeroBarrier, setZeroBarrier] = useState(false);
@@ -67,9 +71,9 @@ function Feed() {
       const [{ data, error }, { data: prof }] = await Promise.all([
         supabase
           .from("matches")
-          .select("score,reasoning,is_future,future_reason,ready_in,opportunity:opportunities(id,title,organization,category,description,deadline,location,value_usd,underrepresented,competitiveness,application_fee,fee_waiver_available,travel_required,equipment_needed,format)")
+          .select("score,reasoning,is_future,future_reason,ready_in,opportunity:opportunities(id,title,organization,category,description,deadline,location,value_usd,underrepresented,competitiveness,application_fee,fee_waiver_available,travel_required,equipment_needed,format,remote)")
           .eq("user_id", u.user.id),
-        supabase.from("profiles").select("display_name,zero_barrier_filter_enabled").eq("id", u.user.id).maybeSingle(),
+        supabase.from("profiles").select("display_name,zero_barrier_filter_enabled,location,country").eq("id", u.user.id).maybeSingle(),
       ]);
       if (error) {
         setLoadError(error.message);
@@ -79,6 +83,7 @@ function Feed() {
       const name = (prof?.display_name as string | undefined) ?? u.user.email?.split("@")[0] ?? "";
       setFirstName(name.split(" ")[0] ?? "");
       setZeroBarrier(!!prof?.zero_barrier_filter_enabled);
+      setUserPlace(parsePlace((prof?.location as string | null | undefined) ?? null, (prof?.country as string | null | undefined) ?? null));
       setPrefsLoaded(true);
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "We could not reach your feed. Check your connection and try again.");
@@ -139,7 +144,7 @@ function Feed() {
   // the strong lane is empty, so the feed is never a dead end on first run.
   const closeMatches = matches.filter((m) => !m.is_future && m.score >= 70 && m.score < 85);
   const sortFn = (a: MatchRow, b: MatchRow) => {
-    if (sort === "score") return b.score - a.score;
+    if (sort === "score") return (b.score + locationFit(userPlace, b.opportunity).score * 0.4) - (a.score + locationFit(userPlace, a.opportunity).score * 0.4);
     const ad = a.opportunity?.deadline ?? "9999-12-31";
     const bd = b.opportunity?.deadline ?? "9999-12-31";
     return ad.localeCompare(bd);
@@ -150,8 +155,9 @@ function Feed() {
     if (!o) return false;
     if (category !== "all" && normalizeCategory(o.category) !== category) return false;
     if (zeroBarrier && !isZeroBarrier(o)) return false;
-    if (locationFilter === "remote" && !/remote|online|virtual/i.test(o.location ?? "")) return false;
-    if (locationFilter === "inperson" && /remote|online|virtual/i.test(o.location ?? "")) return false;
+    if (locationFilter === "remote" && !isOnline(o)) return false;
+    if (locationFilter === "inperson" && isOnline(o)) return false;
+    if (nearOnly && locationFit(userPlace, o).kind === "elsewhere") return false;
     if (awardFilter === "award" && !normalizeOpportunityValue(o.value_usd, o.description)) return false;
     if (compFilter !== "all" && (o.competitiveness ?? "").toLowerCase() !== compFilter) return false;
     if (underrepOnly && !o.underrepresented) return false;
@@ -250,6 +256,12 @@ function Feed() {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <FilterChip active={locationFilter === "remote"} onClick={() => setLocationFilter(locationFilter === "remote" ? "all" : "remote")}>Remote</FilterChip>
           <FilterChip active={locationFilter === "inperson"} onClick={() => setLocationFilter(locationFilter === "inperson" ? "all" : "inperson")}>In-person</FilterChip>
+          {hasPlace(userPlace) && (
+            <FilterChip active={nearOnly} onClick={() => setNearOnly(!nearOnly)}>Near me or online</FilterChip>
+          )}
+          {prefsLoaded && !hasPlace(userPlace) && (
+            <span className="text-xs text-muted-foreground">Add your city and state in your profile to see programs near you.</span>
+          )}
           <FilterChip active={awardFilter === "award"} onClick={() => setAwardFilter(awardFilter === "award" ? "all" : "award")}>Has award money</FilterChip>
           <FilterChip active={underrepOnly} onClick={() => setUnderrepOnly(!underrepOnly)}>Underrepresented-friendly</FilterChip>
           <Select value={compFilter} onValueChange={setCompFilter}>
@@ -261,10 +273,10 @@ function Feed() {
               <SelectItem value="high">High competition</SelectItem>
             </SelectContent>
           </Select>
-          {(q || locationFilter !== "all" || awardFilter !== "all" || compFilter !== "all" || underrepOnly) && (
+          {(q || locationFilter !== "all" || awardFilter !== "all" || compFilter !== "all" || underrepOnly || nearOnly) && (
             <button
               type="button"
-              onClick={() => { setQuery(""); setLocationFilter("all"); setAwardFilter("all"); setCompFilter("all"); setUnderrepOnly(false); }}
+              onClick={() => { setQuery(""); setLocationFilter("all"); setAwardFilter("all"); setCompFilter("all"); setUnderrepOnly(false); setNearOnly(false); }}
               className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
             >
               Clear all
@@ -314,7 +326,7 @@ function Feed() {
       ) : (
 
         <div className="grid gap-4">
-          {filtered.map((m) => <OpportunityCard key={m.opportunity.id} match={m} />)}
+          {filtered.map((m) => <OpportunityCard key={m.opportunity.id} match={m} place={userPlace} />)}
           {showClose && (
             <div>
               <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4 text-sm mb-4">
@@ -330,7 +342,7 @@ function Feed() {
                 </div>
               </div>
               <div className="grid gap-4">
-                {filteredClose.map((m) => <OpportunityCard key={m.opportunity.id} match={m} />)}
+                {filteredClose.map((m) => <OpportunityCard key={m.opportunity.id} match={m} place={userPlace} />)}
               </div>
             </div>
           )}
@@ -361,7 +373,7 @@ function Feed() {
                 You aren't eligible for these yet, but they fit your goals. Save them so you're ready when the window opens.
               </p>
               <div className="grid gap-4">
-                {filteredFuture.map((m) => <OpportunityCard key={m.opportunity.id} match={m} />)}
+                {filteredFuture.map((m) => <OpportunityCard key={m.opportunity.id} match={m} place={userPlace} />)}
               </div>
             </div>
           )}
@@ -407,9 +419,10 @@ function EmptyState({ onRefresh, refreshing, hasAny }: { onRefresh: () => void; 
   );
 }
 
-function OpportunityCard({ match }: { match: MatchRow }) {
+function OpportunityCard({ match, place }: { match: MatchRow; place: Place | null }) {
   const o = match.opportunity;
   if (!o) return null;
+  const fit = locationFit(place, o);
   const isFuture = !!match.is_future;
   const daysToDeadline = o.deadline ? Math.ceil((new Date(o.deadline).getTime() - Date.now()) / 86400000) : null;
   const urgent = !isFuture && daysToDeadline !== null && daysToDeadline >= 0 && daysToDeadline <= 30;
@@ -450,6 +463,9 @@ function OpportunityCard({ match }: { match: MatchRow }) {
               </span>
 
               {o.location && <span>{o.location}</span>}
+              {fit.label && (
+                <Badge variant={fit.kind === "elsewhere" ? "outline" : "secondary"} className="text-[10px]">{fit.label}</Badge>
+              )}
               {(() => {
                 const v = normalizeOpportunityValue(o.value_usd, o.description);
                 return v ? (

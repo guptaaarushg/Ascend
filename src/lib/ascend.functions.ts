@@ -246,7 +246,7 @@ export const generateMatches = createServerFn({ method: "POST" })
     const pageSize = 1000;
     for (let page = 0; page < 8; page++) {
       const { data, error } = await supabase
-        .from("opportunities").select("id,title,organization,category,description,eligibility,tags,related_skills,competitiveness,underrepresented,value_usd,application_fee,fee_waiver_available,travel_required,equipment_needed,format,deadline")
+        .from("opportunities").select("id,title,organization,category,description,eligibility,tags,related_skills,competitiveness,underrepresented,value_usd,application_fee,fee_waiver_available,travel_required,equipment_needed,format,deadline,location,remote")
         .eq("status", "approved")
         .or(`deadline.is.null,deadline.gte.${today}`)
         .order("id", { ascending: true })
