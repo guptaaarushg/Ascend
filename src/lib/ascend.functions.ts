@@ -997,7 +997,7 @@ export const lifePathSimulate = createServerFn({ method: "POST" })
         .select("score,why_qualify,is_future,opportunities(id,title,organization,category,deadline,value_usd,eligibility,remote,location)")
         .eq("user_id", userId)
         .order("score", { ascending: false })
-        .limit(45),
+        .limit(30),
       supabase
         .from("user_opportunities")
         .select("status,opportunities(id,title,organization,category)")
@@ -1007,7 +1007,7 @@ export const lifePathSimulate = createServerFn({ method: "POST" })
         .from("opportunities")
         .select("id,title,organization,category,deadline,value_usd,eligibility")
         .or(`title.ilike.%${data.field.split(/[ /]/)[0].replace(/[%,()]/g, "")}%,description.ilike.%${data.career_goal.split(" ")[0].replace(/[%,()]/g, "")}%`)
-        .limit(40),
+        .limit(20),
     ]);
 
     const fmtOpp = (o: any, extra = "") =>
@@ -1018,7 +1018,7 @@ export const lifePathSimulate = createServerFn({ method: "POST" })
     for (const m of (myMatches ?? []) as any[]) {
       const o = m.opportunities; if (!o || seen.has(o.id)) continue;
       seen.add(o.id); titles[o.id] = o.title;
-      lines.push(fmtOpp(o, ` | match=${m.score}${m.is_future ? " (future: not eligible yet)" : ""}${m.why_qualify ? ` | why=${String(m.why_qualify).slice(0, 140)}` : ""}`));
+      lines.push(fmtOpp(o, ` | match=${m.score}${m.is_future ? " (future: not eligible yet)" : ""}${m.why_qualify ? ` | why=${String(m.why_qualify).slice(0, 100)}` : ""}`));
     }
     for (const o of (fieldOpps ?? []) as any[]) {
       if (seen.has(o.id)) continue; seen.add(o.id); titles[o.id] = o.title; lines.push(fmtOpp(o, " | field-related"));
@@ -1030,20 +1030,31 @@ export const lifePathSimulate = createServerFn({ method: "POST" })
     const oppCatalog = lines.join("\n");
     const today = new Date().toISOString().slice(0, 10);
 
+    const pathCount = data.years <= 5 ? "3" : "2";
     const sys = `You are Ascend's Life Path Simulator, a sharp, warm college and career mentor for a high school student. Today is ${today}.
 
-Generate 2-3 distinct pathways (a primary path, a stretch path, and an alternative discipline or affordable route) over ${data.years} years, one milestone per year.
+Generate exactly ${pathCount} genuinely different pathways over ${data.years} years, one milestone per year. If there are 3: a primary path, a stretch path, and an alternative discipline or affordable route. If there are 2: a primary path and an alternative or more affordable route.
 
-SPECIFICITY RULES (most important):
-- Read the full profile. Every milestone must reference at least one concrete detail from it (a named skill, club, award, language, school, location, intended major, financial situation, or tracker item). Never write advice that could apply to any student.
-- Build on what they already have: name their existing strengths and say exactly how to level them up. Name the gaps between their profile and the goal and close one gap per year.
-- Name real programs, courses, exams, and orgs (e.g. AP Biology, Coursera course names, HOSA, USABO, local community college dual enrollment, specific hospital volunteer programs in their region). Prefer opportunities from the catalog; when you use one, put its exact id in opportunity_ids and mention it by name with its deadline.
-- Action steps must be concrete and checkable: what, by when (month/season and year), and how many (hours, projects, applications).
-- Respect money: if they need aid or a full ride, prioritize free programs, fee waivers, QuestBridge, Posse, and in-state options; never recommend paid programs without a funded alternative.
-- Honor foster, housing, or immigration context when present with the specific supports they unlock.
-- Already APPLIED/ACCEPTED tracker items must be built on, not recommended again.
-- Keep it tight: each description, why_you, and checkpoint under 45 words; each action step under 25 words.
-- Plain, encouraging language a 9th grader understands. No em dashes. No generic filler like "work hard" or "stay focused".`;
+DEPTH AND SPECIFICITY RULES (most important):
+- Read the full profile. Every milestone must reference at least one concrete detail from it: a named skill, club, award, language, school, location, intended major, financial situation, or tracker item. Never write advice that could apply to any student.
+- Build on what they already have. Name their existing strengths and say exactly how to level each one up. Name the gaps between their profile and the goal, and close one specific gap per year.
+- Every year must be different. Each milestone title must name the main concrete thing that year (a course, exam, program, competition, project, or application), for example "Sophomore year: AP Biology and the USABO Open Exam", never a theme like "Build your foundation" or "Gain experience". No two milestones in any path may share a title, an action step, or the same wording.
+- The paths must differ in substance: different programs, different college routes, different year-by-year focus. Do not copy one path with renamed titles.
+- Name real programs, courses, exams, and organizations (for example AP Biology, a named Coursera or Khan Academy course, HOSA, USABO, community college dual enrollment, a named hospital volunteer program in their region). Prefer opportunities from the catalog. When you use one, put its exact id in opportunity_ids and mention it by name with its deadline. Only use catalog ids that appear in the list. If you are not sure of a real program's dates or details, say to confirm on the official site. Never invent programs, URLs, or deadlines.
+- description: 60 to 90 words. Explain what the year actually looks like in practice: which months, which classes or programs, roughly how many hours per week, and who they work with.
+- why_you: 30 to 50 words, citing specific profile details and explaining why this step fits this student in particular.
+- action_steps: 4 to 5 steps, each 15 to 30 words. Each step must give a month or season, a quantity (hours, projects, applications, or people to contact), and a named course, program, exam, organization, tool, or catalog item. Make them checkable.
+- checkpoint: one measurable sentence describing what must be true by the end of the year.
+- skills: 3 to 5 specific skills, such as "Python data analysis with pandas", never just "communication" or "teamwork".
+- resources: 2 to 4 named resources a student can actually look up. No URLs.
+- salary_range: a realistic US range with a typical early-career figure and a later-career figure, and the assumption behind it.
+- education_required: the specific degrees, licenses, or certifications and roughly how long they take.
+- financial_strategy: 3 to 4 sentences with named aid sources, fee waivers, and in-state or community college options that fit this student's situation.
+- Respect money. If they need aid or a full ride, prioritize free programs, fee waivers, QuestBridge, Posse, and in-state options. Never recommend a paid program without a funded alternative.
+- Honor foster, housing, or immigration context when present, naming the specific supports it unlocks.
+- Tracker items already APPLIED or ACCEPTED must be built on, not recommended again.
+- Plain, encouraging language a 9th grader understands. No em dashes. Never use filler such as "work hard", "stay focused", "explore your interests", "network", or "gain experience" unless it is followed by the exact named thing to do.
+- Before answering, check that no two milestones repeat a title or action step, and that every milestone names at least one profile detail.`;
     const userMsg = `GOAL: ${data.career_goal}
 FIELD: ${data.field}
 EDUCATION LEVEL: ${data.education_level}
@@ -1070,15 +1081,15 @@ ${oppCatalog}`;
           parameters: {
             type: "object",
             properties: {
-              explanation: { type: "string", description: "2-4 sentences on why these paths fit THIS student, citing their profile." },
+              explanation: { type: "string", description: "3-4 sentences on why these paths fit THIS student, citing specific profile details." },
               profile_insights: {
                 type: "object",
                 properties: {
-                  strengths: { type: "array", items: { type: "string" }, description: "3-5 specific strengths from their profile" },
-                  gaps: { type: "array", items: { type: "string" }, description: "3-5 specific gaps between profile and goal" },
-                  financial_strategy: { type: "string" },
+                  strengths: { type: "array", items: { type: "string" }, description: "3-5 specific strengths from their profile, each naming the actual item and why it matters for the goal" },
+                  gaps: { type: "array", items: { type: "string" }, description: "3-5 specific gaps between profile and goal, each naming what is missing" },
+                  financial_strategy: { type: "string", description: "3-4 sentences with named aid sources and fee waivers" },
                 },
-                required: ["strengths", "gaps"],
+                required: ["strengths", "gaps", "financial_strategy"],
                 additionalProperties: false,
               },
               paths: {
@@ -1087,7 +1098,7 @@ ${oppCatalog}`;
                   type: "object",
                   properties: {
                     name: { type: "string" },
-                    summary: { type: "string" },
+                    summary: { type: "string", description: "2-3 sentences describing what makes this path different from the others" },
                     salary_range: { type: "string" },
                     education_required: { type: "string" },
                     skills: { type: "array", items: { type: "string" } },
@@ -1097,26 +1108,26 @@ ${oppCatalog}`;
                         type: "object",
                         properties: {
                           year: { type: "integer" },
-                          title: { type: "string" },
-                          description: { type: "string" },
-                          why_you: { type: "string", description: "Why this step fits this student, citing a profile detail" },
-                          action_steps: { type: "array", items: { type: "string" }, description: "3-5 concrete dated checkable actions" },
-                          checkpoint: { type: "string", description: "How they know they are on track by the end of the year" },
+                          title: { type: "string", description: "Unique title naming the main concrete thing that year" },
+                          description: { type: "string", description: "60-90 words on what the year looks like in practice" },
+                          why_you: { type: "string", description: "30-50 words citing specific profile details" },
+                          action_steps: { type: "array", items: { type: "string" }, description: "4-5 concrete steps, each with a month or season, a quantity, and a named thing" },
+                          checkpoint: { type: "string", description: "One measurable sentence for the end of the year" },
                           skills: { type: "array", items: { type: "string" } },
                           opportunity_ids: { type: "array", items: { type: "string" } },
                           resources: { type: "array", items: { type: "string" } },
                         },
-                        required: ["year","title","description"],
+                        required: ["year", "title", "description", "why_you", "action_steps", "checkpoint", "skills"],
                         additionalProperties: false,
                       },
                     },
                   },
-                  required: ["name","summary","milestones"],
+                  required: ["name", "summary", "salary_range", "education_required", "skills", "milestones"],
                   additionalProperties: false,
                 },
               },
             },
-            required: ["paths","explanation"],
+            required: ["explanation", "profile_insights", "paths"],
             additionalProperties: false,
           },
         },
@@ -1124,13 +1135,20 @@ ${oppCatalog}`;
       tool_choice: { type: "function", function: { name: "life_paths" } },
     });
 
+    let aiFailure = "";
     const ai = await Promise.race([
       aiRequest,
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 115_000)),
-    ]).catch(() => null);
+    ]).catch((e) => {
+      aiFailure = String((e as Error)?.message ?? e).slice(0, 160);
+      return null;
+    });
     let parsed: any = {};
-    try { parsed = parseAIToolJson(ai); } catch {}
+    try { parsed = parseAIToolJson(ai); } catch (e) {
+      aiFailure = aiFailure || `parse_error: ${String((e as Error)?.message ?? e).slice(0, 120)}`;
+    }
     if (!Array.isArray(parsed.paths) || parsed.paths.length === 0) {
+      logEvent("ai_fallback_used", { route: "life_path", reason: aiFailure || (ai ? "no_paths_in_response" : "timeout_or_no_response") });
       return createFallbackLifePaths(data.career_goal, data.field, data.years);
     }
     const paths = (parsed.paths as any[]).map((p) => ({
