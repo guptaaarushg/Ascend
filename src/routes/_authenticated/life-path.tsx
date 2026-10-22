@@ -35,6 +35,7 @@ type Milestone = {
   resources?: string[];
   why_you?: string;
   action_steps?: string[];
+  targets?: string[];
   checkpoint?: string;
 };
 type Insights = { strengths?: string[]; gaps?: string[]; financial_strategy?: string } | null;
@@ -259,6 +260,12 @@ function LifePath() {
                               {m.why_you && <p className="mt-2 rounded-lg bg-primary/5 p-3 text-sm"><span className="font-medium text-primary">Why this fits you: </span>{m.why_you}</p>}
                               {m.action_steps && m.action_steps.length > 0 && (
                                 <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm">{m.action_steps.map((a) => <li key={a}>{a}</li>)}</ol>
+                              )}
+                              {m.targets && m.targets.length > 0 && (
+                                <div className="mt-3">
+                                  <p className="text-xs font-semibold text-foreground">Programs and goals to target</p>
+                                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">{m.targets.map((t) => <li key={t}>{t}</li>)}</ul>
+                                </div>
                               )}
                               {m.checkpoint && <p className="mt-2 text-xs text-muted-foreground"><span className="font-medium text-foreground">You are on track if: </span>{m.checkpoint}</p>}
                               <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">

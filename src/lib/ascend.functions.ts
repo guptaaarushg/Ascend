@@ -48,7 +48,7 @@ function getAIProviders(): AIProvider[] {
       name: "groq",
       url: "https://api.groq.com/openai/v1/chat/completions",
       key: process.env.GROQ_API_KEY,
-      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      model: process.env.GROQ_MODEL || "openai/gpt-oss-120b",
       jsonMode: true,
     });
   }
@@ -57,7 +57,7 @@ function getAIProviders(): AIProvider[] {
       name: "openrouter",
       url: "https://openrouter.ai/api/v1/chat/completions",
       key: process.env.OPENROUTER_API_KEY,
-      model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free",
+      model: process.env.OPENROUTER_MODEL || "openai/gpt-oss-120b:free",
       jsonMode: false,
     });
   }
@@ -83,6 +83,7 @@ async function callAIOnce(body: Record<string, unknown>, provider: AIProvider) {
     messages: [{ role: "system", content: STYLE_RULES }, ...msgs],
   };
   if (usesTools && provider.jsonMode) patched.response_format = { type: "json_object" };
+  if (provider.name === "groq" && provider.model.startsWith("openai/gpt-oss")) patched.reasoning_effort = "low";
   delete (patched as any).tools;
   delete (patched as any).tool_choice;
   const timeoutMs = Number((patched as any).timeoutMs) || AI_TIMEOUT_MS;
@@ -138,8 +139,10 @@ function parseAIToolJson(ai: any): any {
   return JSON.parse(text.slice(start, end + 1));
 }
 
-async function callAI(body: Record<string, unknown>) {
+async function callAI(rawBody: Record<string, unknown>) {
+  const { preferProvider, ...body } = rawBody as Record<string, unknown> & { preferProvider?: string };
   const providers = getAIProviders();
+  if (preferProvider) providers.sort((a, b) => Number(b.name === preferProvider) - Number(a.name === preferProvider));
   if (providers.length === 0) throw new Error("No AI provider configured. Set GROQ_API_KEY or OPENROUTER_API_KEY.");
   const done = startTimer();
   let lastError: unknown;
@@ -1044,6 +1047,7 @@ DEPTH AND SPECIFICITY RULES (most important):
 - description: 60 to 90 words. Explain what the year actually looks like in practice: which months, which classes or programs, roughly how many hours per week, and who they work with.
 - why_you: 30 to 50 words, citing specific profile details and explaining why this step fits this student in particular.
 - action_steps: 4 to 5 steps, each 15 to 30 words. Each step must give a month or season, a quantity (hours, projects, applications, or people to contact), and a named course, program, exam, organization, tool, or catalog item. Make them checkable.
+- targets: 3 to 5 specific, named things to aim for that year. Each is a real program, competition, scholarship, certification, course, lab, or college department, written as "Name: why it fits this student and when to apply or compete". Pick them for this student's field, level, location, and finances (for example USACO divisions, MIT Beaver Works Summer Institute, Stanford SIMR, HOSA competitions, Questbridge, named community college dual enrollment courses). Use catalog items by name when they fit. Only name things you are confident really exist, and tell the student to confirm dates on the official site.
 - checkpoint: one measurable sentence describing what must be true by the end of the year.
 - skills: 3 to 5 specific skills, such as "Python data analysis with pandas", never just "communication" or "teamwork".
 - resources: 2 to 4 named resources a student can actually look up. No URLs.
@@ -1070,6 +1074,7 @@ OPPORTUNITY CATALOG, ranked by this student's personal match score first (id | c
 ${oppCatalog}`;
 
     const aiRequest = callAI({
+      preferProvider: "openrouter",
       model: MODEL,
       timeoutMs: 110_000,
       messages: [{ role: "system", content: sys }, { role: "user", content: userMsg }],
@@ -1112,12 +1117,13 @@ ${oppCatalog}`;
                           description: { type: "string", description: "60-90 words on what the year looks like in practice" },
                           why_you: { type: "string", description: "30-50 words citing specific profile details" },
                           action_steps: { type: "array", items: { type: "string" }, description: "4-5 concrete steps, each with a month or season, a quantity, and a named thing" },
+                          targets: { type: "array", items: { type: "string" }, description: "3-5 named real programs, competitions, scholarships, courses, or colleges to target, each as Name: why it fits and when" },
                           checkpoint: { type: "string", description: "One measurable sentence for the end of the year" },
                           skills: { type: "array", items: { type: "string" } },
                           opportunity_ids: { type: "array", items: { type: "string" } },
                           resources: { type: "array", items: { type: "string" } },
                         },
-                        required: ["year", "title", "description", "why_you", "action_steps", "checkpoint", "skills"],
+                        required: ["year", "title", "description", "why_you", "action_steps", "targets", "checkpoint", "skills"],
                         additionalProperties: false,
                       },
                     },

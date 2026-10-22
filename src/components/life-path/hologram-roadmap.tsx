@@ -13,6 +13,7 @@ export type HoloMilestone = {
   opportunity_ids?: string[];
   why_you?: string;
   action_steps?: string[];
+  targets?: string[];
   checkpoint?: string;
 };
 
@@ -418,6 +419,12 @@ export function HologramRoadmap({ milestones, opportunityTitles = {} }: { milest
               <div className="mt-3">
                 <p className="text-xs font-semibold text-foreground">Your action steps</p>
                 <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm">{milestone.action_steps?.map((a) => <li key={a}>{a}</li>)}</ol>
+              </div>
+            )}
+            {(milestone.targets?.length ?? 0) > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-semibold text-foreground">Programs and goals to target</p>
+                <ul className="mt-1 list-disc space-y-1 pl-5 text-sm">{milestone.targets?.map((t) => <li key={t}>{t}</li>)}</ul>
               </div>
             )}
             {milestone.checkpoint && <p className="mt-3 text-xs text-muted-foreground"><span className="font-medium text-foreground">You are on track if: </span>{milestone.checkpoint}</p>}
