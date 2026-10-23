@@ -20,12 +20,12 @@ export const Route = createFileRoute("/contact")({
       {
         name: "description",
         content:
-          "Send feedback, report a bug, or reach the Ascend team directly by email or social media.",
+          "Send feedback, report a bug, or reach me directly by email or social media.",
       },
       { property: "og:title", content: "Contact and feedback, Ascend" },
       {
         property: "og:description",
-        content: "Tell us what is working, what is broken, and what you wish Ascend could do.",
+        content: "Tell me what is working, what is broken, and what you wish Ascend could do.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -64,7 +64,7 @@ function ContactPage() {
 
     if (cleanName.length < 1) return toast.error("Please add your name.");
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) return toast.error("Please add a valid email.");
-    if (cleanMessage.length < 5) return toast.error("Please write a little more so we can help.");
+    if (cleanMessage.length < 5) return toast.error("Please write a little more so I can help.");
 
     setSending(true);
     const { data: userData } = await supabase.auth.getUser();
@@ -78,7 +78,7 @@ function ContactPage() {
     setSending(false);
 
     if (error) {
-      toast.error("That did not send. You can email us directly instead.");
+      toast.error("That did not send. You can email me directly instead.");
       return;
     }
     setSent(true);
@@ -104,8 +104,8 @@ function ContactPage() {
           Feedback and contact
         </h1>
         <p className="mt-4 max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-          Ascend gets better when students, parents, and counselors tell us what is missing. Send a
-          note about a bug, a missing opportunity, or an idea, and it goes straight to us.
+          Ascend gets better when students, parents, and counselors tell me what is missing. Send a
+          note about a bug, a missing opportunity, or an idea, and it goes straight to me.
         </p>
 
         <div className="mt-10 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
@@ -118,7 +118,7 @@ function ContactPage() {
                 <div className="space-y-4 py-4">
                   <p className="text-lg font-medium">Got it, thank you.</p>
                   <p className="text-muted-foreground">
-                    We read every message and usually reply within a few days.
+                    I read every message and usually reply within a few days.
                   </p>
                   <Button variant="outline" onClick={() => setSent(false)}>
                     Send another
@@ -176,7 +176,7 @@ function ContactPage() {
                       onChange={(e) => setMessage(e.target.value)}
                       rows={7}
                       maxLength={4000}
-                      placeholder="Tell us what happened, what you were trying to do, or what you wish existed."
+                      placeholder="Tell me what happened, what you were trying to do, or what you wish existed."
                       required
                     />
                     <p className="text-xs text-muted-foreground">{message.length}/4000</p>
@@ -192,7 +192,7 @@ function ContactPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Reach us directly</CardTitle>
+              <CardTitle>Reach me directly</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 text-sm">
               <div>
@@ -212,21 +212,9 @@ function ContactPage() {
                   @{SOCIAL}
                 </a>
               </div>
-              <div>
-                <p className="font-medium text-foreground">Facebook</p>
-                <a
-                  href={`https://facebook.com/${SOCIAL}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-primary underline underline-offset-4"
-                >
-                  {SOCIAL}
-                </a>
-              </div>
               <p className="text-muted-foreground leading-relaxed">
-                Ascend is built and maintained by Aarush Gupta. If you are a counselor or a
-                nonprofit that wants to bring Ascend to your students, say so in the message and we
-                will set it up.
+                I built and maintain Ascend. If you are a counselor or a nonprofit that wants to
+                bring Ascend to your students, say so in the message and I will set it up.
               </p>
             </CardContent>
           </Card>

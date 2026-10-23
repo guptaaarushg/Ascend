@@ -93,6 +93,8 @@ function Landing() {
         </div>
       </section>
 
+      <ImpactStrip />
+
       {/* ORIGIN */}
       <section className="bg-peach-soft/30">
         <div className="max-w-screen-2xl mx-auto px-6 sm:px-10 lg:px-16 py-16 sm:py-24 lg:py-32">
@@ -190,9 +192,6 @@ function Landing() {
         </div>
       </section>
 
-      {/* OUR IMPACT SO FAR */}
-      <ImpactStrip />
-
       {/* IMPACT */}
       <section className="bg-peach-soft/20">
         <div className="max-w-screen-2xl mx-auto px-6 sm:px-10 lg:px-16 py-16 sm:py-24 lg:py-32">
@@ -211,9 +210,6 @@ function Landing() {
           <Link to="/contact" className="text-sm font-medium hover:text-peach-deep transition-colors">
             Feedback and contact
           </Link>
-          <span className="text-sm text-foreground/70 uppercase tracking-widest font-medium">
-            Developed by Aarush Gupta
-          </span>
         </div>
       </footer>
 
@@ -273,13 +269,13 @@ function ImpactStrip() {
 
 
   return (
-    <section className="border-t border-border">
-      <div className="max-w-screen-2xl mx-auto px-6 sm:px-10 lg:px-16 py-16 sm:py-24">
+    <section className="bg-background">
+      <div className="max-w-screen-2xl mx-auto px-6 sm:px-10 lg:px-16 py-12 sm:py-16 lg:py-20">
         <p className="text-sm uppercase tracking-[0.2em] text-peach-deep mb-4 font-semibold">Where Ascend Stands Today</p>
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-semibold leading-[1.05] mb-4">
           Real numbers from a real pilot
         </h2>
-        <p className="text-base sm:text-lg md:text-xl text-foreground/75 leading-relaxed max-w-3xl mb-10 sm:mb-14">
+        <p className="text-base sm:text-lg md:text-xl text-foreground/75 leading-relaxed max-w-3xl mb-8 sm:mb-10">
           Ascend is early. These are totals across our pilot cohorts and the live database. No student is ever named, counted twice, or shown to anyone else.
         </p>
 

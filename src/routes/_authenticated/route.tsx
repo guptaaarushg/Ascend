@@ -88,7 +88,7 @@ function AuthLayout() {
       </main>
       <footer className="border-t py-6 mt-10">
         <div className="container mx-auto max-w-7xl px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-muted-foreground">
-          <span>Ascend, built by Aarush Gupta</span>
+          <span>Ascend</span>
           <div className="flex items-center gap-5">
             <Link to="/contact" className="hover:text-foreground transition-colors">
               Feedback and contact
