@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { containsProfanity, FAMILY_FRIENDLY_MESSAGE } from "@/lib/profanity";
 import { sanitizeText } from "@/lib/validation";
 import { shortlistOpportunities, hybridRank, type RankProfile } from "@/lib/matching";
+import { tablesToLists } from "@/lib/chat-format";
 import { logEvent, recordEvent, startTimer } from "@/lib/observability";
 
 
@@ -275,12 +276,13 @@ export const generateMatches = createServerFn({ method: "POST" })
     const seen = new Set((existing ?? []).map((r) => r.opportunity_id as string));
     const fresh = catalog.filter((o) => !seen.has(o.id));
     const pool = data?.rescoreAll || seen.size === 0 || fresh.length < 25 ? catalog : fresh;
-    const opps = shortlistOpportunities(pool, profile as RankProfile, 120);
+    const shortlistSize = data?.rescoreAll || seen.size === 0 ? 96 : 48;
+    const opps = shortlistOpportunities(pool, profile as RankProfile, shortlistSize);
 
     const profileText = profileSummary(profile);
     const tier = detectIncomeTier(profile);
 
-    const chunkSize = 20;
+    const chunkSize = 24;
     const results: { opportunity_id: string; eligible?: boolean; score: number; reasoning: string }[] = [];
 
     // Stage 3, RERANK. The LLM reads the shortlist in batches of 20, three at a
@@ -289,81 +291,34 @@ export const generateMatches = createServerFn({ method: "POST" })
     for (let i = 0; i < opps.length; i += chunkSize) chunks.push(opps.slice(i, i + chunkSize));
 
     let failedChunks = 0;
-    const scoreChunk = async (chunk: any[]) => {
-      const oppList = chunk.map((o, idx) => `[${idx}] id=${o.id} | ${o.category} | ${o.title} (${o.organization})
-  Eligibility: ${o.eligibility}
-  Tags: ${(o.tags ?? []).join(", ")}
-  Underrepresented-friendly: ${o.underrepresented}
-  Value: ${o.value_usd ? `$${o.value_usd}` : "n/a"}
-  Application fee: ${o.application_fee === 0 ? "free" : typeof o.application_fee === "number" ? `$${o.application_fee}` : "unknown"}${o.fee_waiver_available ? " (waiver available)" : ""}
-  Travel required: ${o.travel_required === true ? "yes" : o.travel_required === false ? "no" : "unknown"} | Format: ${o.format ?? "unknown"}${o.equipment_needed ? ` | Equipment: ${o.equipment_needed}` : ""}`).join("\n\n");
+    const scoreChunk = async (chunk: any[], chunkIndex: number) => {
+      const oppList = chunk.map((o, idx) => {
+        const fee = o.application_fee === 0 ? "free" : typeof o.application_fee === "number" ? `$${o.application_fee}` : "unknown";
+        const travel = o.travel_required === true ? "yes" : o.travel_required === false ? "no" : "unknown";
+        return `[${idx}] ${o.category} | ${o.title} (${o.organization})\n  Eligibility: ${String(o.eligibility ?? "").slice(0, 300)}\n  Tags: ${(o.tags ?? []).slice(0, 6).join(", ")} | Where: ${o.location ?? "n/a"} | Value: ${o.value_usd ? `$${o.value_usd}` : "n/a"} | Fee: ${fee}${o.fee_waiver_available ? " (waiver)" : ""} | Travel: ${travel} | Format: ${o.format ?? "unknown"}${o.underrepresented ? " | Underrepresented-friendly" : ""}${o.equipment_needed ? ` | Equipment: ${o.equipment_needed}` : ""}`;
+      }).join("\n");
 
+      const sys = `You are Ascend's personalization engine. For each numbered opportunity, decide HARD ELIGIBILITY, then a fit score, then whether it is a CURRENT match or a FUTURE recommendation. Call score_opportunities with one entry per opportunity, using its number as n.
 
-      const sys = `You are Ascend's personalization engine. For each opportunity, first determine HARD ELIGIBILITY, then produce a fit score, then decide whether it belongs in the CURRENT feed or the FUTURE recommendations list.
+HARD ELIGIBILITY. Set eligible=false if any stated requirement is not met by the profile: ethnicity or race, gender, income or Pell status, age range, grade or education level, citizenship or residency or location, disability, veteran, first-generation, LGBTQ+, religious or other identity restrictions, and required major or field when restrictive. If the profile is silent on a restricted identity requirement, treat the user as NOT eligible. Never assume race, gender, disability, veteran, LGBTQ+, or religious status.
 
-HARD ELIGIBILITY (return eligible=false if ANY stated requirement is not met by the user's profile):
-- Ethnicity / race requirements (e.g. "must be Hispanic", "for Black students", "Native American only", "AAPI"), only eligible if the user's profile explicitly matches.
-- Gender requirements (e.g. "women in STEM", "for girls", "male-identifying").
-- Income / financial requirements (e.g. "household income under $X", "Pell-eligible", "low-income only"), only eligible if the user's socioeconomic info clearly fits.
-- Age requirements (must fall inside the stated age range).
-- Grade / education level (e.g. "high school juniors and seniors", "undergraduates only", "graduate students").
-- Citizenship / residency / location (e.g. "US citizens only", "California residents", "EU students").
-- Disability, veteran, first-generation, LGBTQ+, religious, or other identity requirements when the program is RESTRICTED to that group.
-- Required major / field of study when restrictive.
+OPT-IN FLAGS (foster care experience, housing insecurity, immigration context) follow the same policy as protected traits. If the profile is silent, treat the flag as absent. Use a set flag ONLY to add eligible opportunities, never to exclude or down-score anything, and never mention it as a weakness. Foster care: foster-youth tuition waivers, ETV funds, Foster Care to Success, Casey Family Programs, campus foster-youth programs. Housing insecurity: McKinney-Vento supports, unaccompanied homeless youth FAFSA, SchoolHouse Connection, emergency aid. Immigration context indicating no citizenship or permanent residency: funds open without citizenship (TheDream.US, Golden Door, Hispanic Scholarship Fund where applicable, state aid open to undocumented residents). Never recommend anything that requires US citizenship or a Social Security number for such users, and never restate immigration details; say only "programs that do not require citizenship".
 
-If the profile is silent on a restricted demographic / identity requirement, treat the user as NOT eligible (eligible=false) and DO NOT recommend it, even as a future goal. Never assume race, gender, disability, veteran, LGBTQ+, or religious status.
+COST: each item lists fee, travel, and format. For low income tiers prefer free, fee-waivable, and virtual programs, and say so when it is a real reason. Never treat unknown costs as free.
 
-OPT-IN CIRCUMSTANCE FLAGS (foster care experience, housing insecurity / homelessness, immigration context):
-- These follow the EXACT same policy as every other protected trait. If the profile is silent, treat the flag as absent. Never infer or assume any of them from location, income, language, or last name.
-- Use them ONLY to ADD eligible opportunities the user would otherwise never see. Never use them to exclude, down-score, or disqualify anything, and never mention them as a weakness.
-- When a flag IS set, actively surface these categories and name the specific program type in the reasoning:
-  * Foster care experience: state foster-youth tuition and fee waivers, Education and Training Voucher (ETV) funds, Foster Care to Success, Casey Family Programs scholarships, campus foster-youth support programs.
-  * Housing insecurity / homelessness: McKinney-Vento supports, unaccompanied homeless youth FAFSA determinations, SchoolHouse Connection scholarships, emergency aid and basic-needs grants.
-  * Immigration context that indicates no citizenship or permanent residency: funds explicitly open without citizenship or permanent residency requirements (TheDream.US, Golden Door, Hispanic Scholarship Fund where applicable, private funders that do not require FAFSA), and state aid programs open to undocumented residents. NEVER recommend anything that requires US citizenship or a Social Security number when the profile indicates the user does not have one.
-- Never restate immigration details back to the user in reasoning. Refer to it only as "programs that do not require citizenship".
+FUTURE RECOMMENDATIONS: set is_future_recommendation=true (with eligible=false, ready_in such as "when you start 11th grade", and a specific future_reason) ONLY when the user is ineligible for a time-based or skill-based reason they can overcome (grade level, coursework, age, a prerequisite). Never for immutable identity requirements (race, ethnicity, gender, citizenship, disability, veteran status, religion, first-gen).
 
-REAL COST OF APPLYING:
-- Each opportunity lists an application fee, whether travel is required, its format, and any equipment needed. When the user's income tier is low, prefer free-to-apply, fee-waivable, and fully virtual programs, and say so in the reasoning when it is a genuine reason for the fit.
-- Never treat unknown cost data as free.
+SCORE 0-100 only if eligible or future. Weigh profile strength against competitiveness (do not inflate), relevance to interests, skills and goals, acceptance odds, and the income tier "${tier}". For low-income, first-gen, or underserved users boost need-based, fee-waived, fully funded, and mentorship programs. For middle-income users balance merit and need. For high-income users favor selective merit programs. Use the full range. Score 80 or above when the user is clearly eligible AND the program fits their interests, awards, college goals, or finances. Aim for 25 to 40 such matches across the whole catalog. Keep scores below 80 for thin or speculative fits, and never inflate an ineligible program.
 
+COLLEGE GOALS: if dream, target, or safety colleges are listed, favor institutional aid, fly-in, admitted-student, feeder, and partner programs for those schools (QuestBridge, Posse, MITES, SSP, HSSP, RSI) and name the school. If "Needs a FULL RIDE" is YES, favor full-ride scholarships and down-weight merit awards under $5k. If "Applying with financial aid" is YES, cite need-based alignment (CSS Profile, FAFSA, need-blind schools, fee waivers). Weight the intended major, and treat major-restricted programs in unrelated fields as low fit.
 
-FUTURE RECOMMENDATIONS (is_future_recommendation=true):
-- Set is_future_recommendation=true ONLY when the user is currently ineligible for a TIME-BASED or SKILL-BASED reason they can realistically overcome (wrong grade level yet, needs 1-2 more years of coursework, needs to be enrolled in a specific program, needs a prerequisite skill/course, needs to reach a certain age).
-- NEVER set is_future_recommendation=true for immutable identity requirements (race, ethnicity, gender, citizenship, disability, veteran status, religion, first-gen).
-- When is_future_recommendation=true, set eligible=false AND provide "ready_in" (e.g. "when you start 11th grade", "after your first year of college", "in about 2 years") AND "future_reason" (specific qualifier they need to unlock it, tied to their profile).
-- Score should reflect long-term fit assuming they meet the missing qualifier.
-
-Only if eligible=true OR is_future_recommendation=true, produce a score 0-100 reflecting realistic fit considering:
-- Profile strength vs. competitiveness, do not inflate.
-- Relevance to interests, skills, and long-term goals.
-- Probability of acceptance.
-- Socioeconomic context: the user's income tier appears to be "${tier}".
-  * For LOW-INCOME / first-gen / underserved users: boost need-based scholarships, fee-waived programs, fully-funded opportunities, mentorship for underrepresented students.
-  * For MIDDLE-INCOME users: balance merit-based and need-based opportunities.
-  * For HIGH-INCOME users: prioritize highly selective, prestigious, merit-based programs.
-
-REASONING RULES ("Why you" / disqualifier text):
-- Map the opportunity's ACTUAL primary criterion to the SPECIFIC matching element in the user's profile.
-- Every reasoning MUST cite AT LEAST TWO of: (a) a specific career or academic interest by name, (b) a specific award/certification the user holds by name, (c) their socioeconomic context, (d) a specific skill or extracurricular by name. Never write generic phrases like "your strong background" or "your interest in STEM".
-- PURELY NEED-BASED programs (Pell Grant, FAFSA aid, Common App fee waiver, EITC, SNAP, food/housing aid): cite financial/socioeconomic profile fields ONLY. Do NOT cite career goals, GPA, or achievements, even if strong.
-- MERIT-BASED programs (Cooke, Gates, Coca-Cola, Davidson, Regeneron STS, USACO/USABO-linked programs, research fellowships, Olympiads): cite the specific award or certification that satisfies the "high-achieving" or "demonstrated excellence" requirement.
-- HYBRID need + merit programs (QuestBridge, Posse, Gates Millennium, Jack Kent Cooke): cite BOTH the financial qualifier AND the specific academic award/certification in one sentence.
-- IDENTITY-RESTRICTED programs: lead with the demographic match, then add fit.
-- LOCATION / FIELD restricted programs: lead with the location/field match.
-- Never start with a generic "your goal of becoming a doctor". Lead with the criterion the program actually screens on.
-- SCORING BAR: Use the full 0-100 range and do not compress scores. Score 80 or above whenever the user is clearly eligible AND the program lines up with their stated interests, awards, college goals, or financial situation. Aim to place at least 25 to 40 genuinely strong, eligible opportunities at 80 or above across the whole catalog. Keep scores below 80 only when the fit is thin or speculative, and never inflate a program the user is not eligible for.
-
-COLLEGE-GOAL PERSONALIZATION:
-- If the user listed dream / target / safety colleges, PRIORITIZE opportunities that (a) are institutional aid, fly-in, or admitted-student programs at THOSE specific schools, (b) are feeder / partner programs for those schools (e.g. QuestBridge for Ivies/Stanford/Duke, Posse for partner campuses, MITES for MIT, SSP for Caltech/MIT, HSSP for Harvard, RSI for MIT), or (c) strengthen the exact application profile those schools screen for. Cite the specific school by name in the reasoning when this is the reason for the fit.
-- If "Needs a FULL RIDE" is YES, prioritize full-ride scholarships (QuestBridge Match, Gates Scholarship, Cooke Undergraduate Transfer/College, Posse, Stamps, Robertson, Morehead-Cain, Jefferson, Park, institutional full-need aid at the user's dream/target schools). Down-weight small merit awards below $5k unless they stack meaningfully.
-- If "Applying with financial aid" is YES, cite need-based aid alignment (CSS Profile / FAFSA-aware programs, need-blind schools, application fee waivers, no-loan aid policies).
-- If the intended major is set, weight opportunities whose subject area matches that major, and treat major-restricted opportunities in unrelated fields as lower fit.
-- 2-3 sentences, specific, no fluff. Only call score_opportunities.`;
-      const user = `USER PROFILE:\n${profileText}\n\nOPPORTUNITIES:\n${oppList}`;
-
+REASONING: write it only when eligible or future AND the score is 70 or higher; otherwise return an empty string. Use 1 to 2 specific sentences, at most 45 words. Map the program's actual screening criterion to the matching profile element and cite at least two of: a named interest, a named award or certification, socioeconomic context, a named skill or activity. Need-based programs (Pell, FAFSA aid, fee waivers, SNAP): cite financial context ONLY. Merit programs: cite the specific award. Hybrid programs: cite both. Identity-restricted programs: lead with the demographic match. Location or field restricted programs: lead with that match. Never write generic phrases like "your strong background".`;
+      const user = `USER PROFILE:\n${profileText}\n\nOPPORTUNITIES (use each number as n):\n${oppList}`;
 
       const ai = await callAIOrNull({
         model: MODEL,
+        max_tokens: 4500,
+        preferProvider: chunkIndex % 2 === 0 ? "groq" : "openrouter",
         messages: [
           { role: "system", content: sys },
           { role: "user", content: user },
@@ -381,7 +336,7 @@ COLLEGE-GOAL PERSONALIZATION:
                   items: {
                     type: "object",
                     properties: {
-                      opportunity_id: { type: "string" },
+                      n: { type: "integer" },
                       eligible: { type: "boolean" },
                       is_future_recommendation: { type: "boolean" },
                       future_reason: { type: "string" },
@@ -389,7 +344,7 @@ COLLEGE-GOAL PERSONALIZATION:
                       score: { type: "integer", minimum: 0, maximum: 100 },
                       reasoning: { type: "string" },
                     },
-                    required: ["opportunity_id", "eligible", "score", "reasoning"],
+                    required: ["n", "eligible", "score", "reasoning"],
                     additionalProperties: false,
                   },
                 },
@@ -411,7 +366,12 @@ COLLEGE-GOAL PERSONALIZATION:
       }
       try {
         const args = parseAIToolJson(ai);
-        if (Array.isArray(args.scores)) results.push(...args.scores);
+        if (Array.isArray(args.scores)) {
+          for (const sc of args.scores) {
+            const target = chunk[Number(sc?.n)];
+            if (target) results.push({ ...sc, opportunity_id: target.id });
+          }
+        }
         else failedChunks++;
       } catch (e) {
         failedChunks++;
@@ -419,9 +379,9 @@ COLLEGE-GOAL PERSONALIZATION:
       }
     };
 
-    const concurrency = 3;
+    const concurrency = 2;
     for (let i = 0; i < chunks.length; i += concurrency) {
-      await Promise.all(chunks.slice(i, i + concurrency).map(scoreChunk));
+      await Promise.all(chunks.slice(i, i + concurrency).map((c, j) => scoreChunk(c, i + j)));
     }
 
     /**
@@ -484,8 +444,16 @@ COLLEGE-GOAL PERSONALIZATION:
       })),
     ];
 
-    if (rows.length) {
-      const { error: upErr } = await supabase.from("matches").upsert(rows, { onConflict: "user_id,opportunity_id" });
+    const byId = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      const prev = byId.get(row.opportunity_id);
+      const better = !prev || (prev.is_future && !row.is_future) || (prev.is_future === row.is_future && row.score > prev.score);
+      if (better) byId.set(row.opportunity_id, row);
+    }
+    const dedupedRows = [...byId.values()];
+
+    if (dedupedRows.length) {
+      const { error: upErr } = await supabase.from("matches").upsert(dedupedRows, { onConflict: "user_id,opportunity_id" });
       if (upErr) throw new Error(upErr.message);
     }
     // Expire matches older than 30 days so closed or changed programs drop off.
@@ -493,8 +461,9 @@ COLLEGE-GOAL PERSONALIZATION:
     await supabase.from("matches").delete().eq("user_id", userId).lt("generated_at", cutoff);
 
     // Remove previously-stored matches the user is not eligible for and not a future recommendation.
-    if (drop.length) {
-      await supabase.from("matches").delete().eq("user_id", userId).in("opportunity_id", drop);
+    const dropIds = [...new Set(drop)].filter((id) => !byId.has(id));
+    if (dropIds.length) {
+      await supabase.from("matches").delete().eq("user_id", userId).in("opportunity_id", dropIds);
     }
 
     await recordEvent(supabase, "match_generation", {
@@ -504,12 +473,16 @@ COLLEGE-GOAL PERSONALIZATION:
       shortlisted: opps.length,
       chunks: chunks.length,
       failed_chunks: failedChunks,
-      matched: eligible.length,
-      future: future.length,
+      matched: dedupedRows.filter((r) => !r.is_future).length,
+      future: dedupedRows.filter((r) => r.is_future).length,
       degraded,
     });
 
-    return { matched: eligible.length, future: future.length, degraded };
+    return {
+      matched: dedupedRows.filter((r) => !r.is_future).length,
+      future: dedupedRows.filter((r) => r.is_future).length,
+      degraded,
+    };
   });
 
 
@@ -538,7 +511,7 @@ export const assistantChat = createServerFn({ method: "POST" })
     ]);
     if (!opp) throw new Error("Opportunity not found");
 
-    const sys = `You are the Ascend Assistant. Be concise, structured, and actionable. Use markdown. Calculate timelines from today and the deadline. Ground essay drafts in the user's profile. Be honest about eligibility gaps and how to close them.
+    const sys = `You are the Ascend Assistant. Be concise, structured, and actionable. Use markdown headings, bold, and bullet lists. Never use markdown tables or pipe characters; present comparisons as bullet lists. Calculate timelines from today and the deadline. Ground essay drafts in the user's profile. Be honest about eligibility gaps and how to close them.
 
 OPPORTUNITY:
 Title: ${opp.title}
@@ -559,7 +532,7 @@ Today is ${new Date().toISOString().slice(0, 10)}.`;
       model: MODEL,
       messages: [{ role: "system", content: sys }, ...data.messages],
     });
-    const content = ai.choices?.[0]?.message?.content ?? "I couldn't generate a response. Please try again.";
+    const content = tablesToLists(ai.choices?.[0]?.message?.content ?? "I couldn't generate a response. Please try again.");
     return { content };
   });
 
@@ -593,6 +566,7 @@ TONE AND ACCESSIBILITY RULES (non-negotiable, youth-centric):
 - Be encouraging, never condescending. Celebrate small wins. Never imply a question is dumb.
 - Bold key vocabulary words with **markdown** so they stand out.
 - Use short bulleted steps and numbered checklists, not long paragraphs.
+- Never use markdown tables or pipe characters. Present schedules and comparisons as bullet lists, for example "- **Monday:** review a geometry theorem".
 - End answers with a small "Next step you can take this week" line whenever it fits.
 
 You answer ANY question a student, jobseeker, or learner might ask about discovering and winning opportunities: scholarships, grants, internships, competitions, mentorships, jobs, research programs, government benefits (FAFSA, Pell, SNAP, EITC), tax credits, community resources, and entrepreneurial funding. Be concrete, specific, and actionable. Quote dollar amounts, deadlines, and eligibility honestly. When the user lacks money for high-cost programs, lead with free / need-based alternatives. When the user is privileged, suggest stretch goals worthy of their profile.
@@ -614,7 +588,7 @@ Today is ${new Date().toISOString().slice(0, 10)}.`;
       model: MODEL,
       messages: [{ role: "system", content: sys }, ...data.messages],
     });
-    const content = ai.choices?.[0]?.message?.content ?? "I couldn't generate a response. Please try again.";
+    const content = tablesToLists(ai.choices?.[0]?.message?.content ?? "I couldn't generate a response. Please try again.");
     return { content };
   });
 
@@ -975,6 +949,24 @@ export function createFallbackLifePaths(goal: string, field: string, years: numb
   };
 }
 
+const LIFE_MILESTONE_ITEM_SCHEMA = {
+  type: "object",
+  properties: {
+    year: { type: "integer" },
+    title: { type: "string", description: "Unique title naming the main concrete thing that year" },
+    description: { type: "string", description: "60-90 words on what the year looks like in practice" },
+    why_you: { type: "string", description: "30-50 words citing specific profile details" },
+    action_steps: { type: "array", items: { type: "string" }, description: "4-5 concrete steps, each with a month or season, a quantity, and a named thing" },
+    targets: { type: "array", items: { type: "string" }, description: "3-5 named real programs, competitions, scholarships, courses, or colleges to target, each as Name: why it fits and when" },
+    checkpoint: { type: "string", description: "One measurable sentence for the end of the year" },
+    skills: { type: "array", items: { type: "string" } },
+    opportunity_ids: { type: "array", items: { type: "string" } },
+    resources: { type: "array", items: { type: "string" } },
+  },
+  required: ["year", "title", "description", "why_you", "action_steps", "targets", "checkpoint", "skills"],
+  additionalProperties: false,
+};
+
 export const lifePathSimulate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => {
@@ -1054,6 +1046,7 @@ export const lifePathSimulate = createServerFn({ method: "POST" })
 Generate exactly ${pathCount} genuinely different pathways over ${data.years} years, one milestone per year. If there are 3: a primary path, a stretch path, and an alternative discipline or affordable route. If there are 2: a primary path and an alternative or more affordable route.
 
 DEPTH AND SPECIFICITY RULES (most important):
+- Each path must contain exactly ${data.years} milestones, one for every year from 1 to ${data.years}, numbered in order. Count them before answering. Never skip, merge, or stop early, and give the later years the same detail as the early ones.
 - Read the full profile. Every milestone must reference at least one concrete detail from it: a named skill, club, award, language, school, location, intended major, financial situation, or tracker item. Never write advice that could apply to any student.
 - Build on what they already have. Name their existing strengths and say exactly how to level each one up. Name the gaps between their profile and the goal, and close one specific gap per year.
 - Every year must be different. Each milestone title must name the main concrete thing that year (a course, exam, program, competition, project, or application), for example "Sophomore year: AP Biology and the USABO Open Exam", never a theme like "Build your foundation" or "Gain experience". No two milestones in any path may share a title, an action step, or the same wording.
@@ -1124,23 +1117,9 @@ ${oppCatalog}`;
                     skills: { type: "array", items: { type: "string" } },
                     milestones: {
                       type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          year: { type: "integer" },
-                          title: { type: "string", description: "Unique title naming the main concrete thing that year" },
-                          description: { type: "string", description: "60-90 words on what the year looks like in practice" },
-                          why_you: { type: "string", description: "30-50 words citing specific profile details" },
-                          action_steps: { type: "array", items: { type: "string" }, description: "4-5 concrete steps, each with a month or season, a quantity, and a named thing" },
-                          targets: { type: "array", items: { type: "string" }, description: "3-5 named real programs, competitions, scholarships, courses, or colleges to target, each as Name: why it fits and when" },
-                          checkpoint: { type: "string", description: "One measurable sentence for the end of the year" },
-                          skills: { type: "array", items: { type: "string" } },
-                          opportunity_ids: { type: "array", items: { type: "string" } },
-                          resources: { type: "array", items: { type: "string" } },
-                        },
-                        required: ["year", "title", "description", "why_you", "action_steps", "targets", "checkpoint", "skills"],
-                        additionalProperties: false,
-                      },
+                      minItems: data.years,
+                      maxItems: data.years,
+                      items: LIFE_MILESTONE_ITEM_SCHEMA,
                     },
                   },
                   required: ["name", "summary", "salary_range", "education_required", "skills", "milestones"],
@@ -1172,12 +1151,75 @@ ${oppCatalog}`;
       logEvent("ai_fallback_used", { route: "life_path", reason: aiFailure || (ai ? "no_paths_in_response" : "timeout_or_no_response") });
       return createFallbackLifePaths(data.career_goal, data.field, data.years);
     }
-    const paths = (parsed.paths as any[]).map((p) => ({
-      ...p,
-      milestones: (Array.isArray(p.milestones) ? p.milestones : []).map((m: any) => ({
+    const totalYears = data.years;
+    const tidyMilestones = (raw: any[]) => {
+      const cleaned = raw.map((m: any) => ({
         ...m,
         opportunity_ids: (m.opportunity_ids ?? []).filter((id: string) => titles[id]),
-      })),
+      }));
+      const inRange = cleaned.every((m: any) => Number.isInteger(Number(m.year)) && Number(m.year) >= 1 && Number(m.year) <= totalYears);
+      const ordered = inRange ? cleaned : cleaned.map((m: any, i: number) => ({ ...m, year: i + 1 }));
+      const byYear = new Map<number, any>();
+      for (const m of ordered) {
+        const y = Number(m.year);
+        if (!byYear.has(y)) byYear.set(y, m);
+      }
+      return byYear;
+    };
+
+    const fillMissing = async (path: any, have: any[], missing: number[]) => {
+      const fillSys = `${sys}\n\nYou are completing an existing pathway. Write ONLY the missing years listed by the user, one milestone per missing year, with the same depth and rules as above. Do not repeat titles or action steps already used.`;
+      const base = userMsg.split("\n\nOPPORTUNITY CATALOG")[0];
+      const fillUser = `${base}\n\nPATHWAY: ${path.name}\nSUMMARY: ${path.summary}\nALREADY WRITTEN:\n${have.map((m: any) => `Year ${m.year}: ${m.title}`).join("\n")}\n\nMISSING YEARS (write exactly ${missing.length} milestones, for years ${missing.join(", ")}).`;
+      const res = await callAIOrNull({
+        model: MODEL,
+        preferProvider: "openrouter",
+        timeoutMs: 110_000,
+        messages: [{ role: "system", content: fillSys }, { role: "user", content: fillUser }],
+        tools: [{
+          type: "function",
+          function: {
+            name: "milestones",
+            description: "Return the missing yearly milestones",
+            parameters: {
+              type: "object",
+              properties: {
+                milestones: { type: "array", minItems: missing.length, maxItems: missing.length, items: LIFE_MILESTONE_ITEM_SCHEMA },
+              },
+              required: ["milestones"],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "milestones" } },
+      });
+      try {
+        const out = parseAIToolJson(res);
+        return Array.isArray(out.milestones) ? (out.milestones as any[]) : [];
+      } catch {
+        return [];
+      }
+    };
+
+    const starter = createFallbackLifePaths(data.career_goal, data.field, totalYears).paths[0].milestones;
+    const paths = await Promise.all((parsed.paths as any[]).map(async (p) => {
+      const byYear = tidyMilestones(Array.isArray(p.milestones) ? p.milestones : []);
+      let missing = Array.from({ length: totalYears }, (_, i) => i + 1).filter((y) => !byYear.has(y));
+      if (missing.length > 0) {
+        const added = await fillMissing(p, [...byYear.values()].sort((x, y) => Number(x.year) - Number(y.year)), missing);
+        const addedTidy = added.map((m: any) => ({
+          ...m,
+          opportunity_ids: (m.opportunity_ids ?? []).filter((id: string) => titles[id]),
+        }));
+        missing.forEach((y, i) => {
+          if (addedTidy[i]) byYear.set(y, { ...addedTidy[i], year: y });
+        });
+        missing = missing.filter((y) => !byYear.has(y));
+        logEvent("ai_fallback_used", { route: "life_path_fill", reason: `filled ${added.length} of ${added.length + missing.length} missing years` });
+      }
+      for (const y of missing) byYear.set(y, starter[y - 1]);
+      const milestones = Array.from({ length: totalYears }, (_, i) => byYear.get(i + 1)).filter(Boolean);
+      return { ...p, milestones };
     }));
     return {
       explanation: String(parsed.explanation ?? ""),

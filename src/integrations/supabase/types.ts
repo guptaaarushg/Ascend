@@ -556,6 +556,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      catalog_count: { Args: never; Returns: number }
       impact_summary: {
         Args: never
         Returns: {

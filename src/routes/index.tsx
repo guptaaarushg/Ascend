@@ -237,12 +237,12 @@ function ImpactStrip() {
     (async () => {
       const [summary, count] = await Promise.all([
         supabase.rpc("impact_summary"),
-        supabase.from("opportunities").select("id", { count: "exact", head: true }).eq("status", "approved"),
+        supabase.rpc("catalog_count"),
       ]);
       if (cancelled) return;
       const row = Array.isArray(summary.data) ? summary.data[0] : null;
       if (row && !summary.error) setImpact(row as Impact);
-      if (typeof count.count === "number" && !count.error) setCatalog(count.count);
+      if (typeof count.data === "number" && !count.error) setCatalog(count.data);
     })();
     return () => { cancelled = true; };
   }, []);
