@@ -150,7 +150,7 @@ function Onboarding() {
 
       toast.success("Profile saved. Generating matches…");
       try {
-        const res = await runMatches();
+        const res = await runMatches({ data: { rescoreAll: true } });
         toast.success(`Found ${res.matched} matched opportunities for you.`);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Match generation failed");

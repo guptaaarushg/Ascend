@@ -26,7 +26,13 @@ function scrubDashesDeep<T>(v: T): T {
 }
 
 /** Errors worth retrying: transient network faults, rate limits, upstream 5xx. */
-class RetryableAIError extends Error {}
+class RetryableAIError extends Error {
+  retryAfterMs?: number;
+  constructor(message: string, retryAfterMs?: number) {
+    super(message);
+    this.retryAfterMs = retryAfterMs;
+  }
+}
 
 const AI_MAX_ATTEMPTS = 3;
 const AI_TIMEOUT_MS = 45_000;
@@ -104,7 +110,11 @@ async function callAIOnce(body: Record<string, unknown>, provider: AIProvider) {
     clearTimeout(timer);
   }
   if (!res.ok) {
-    if (res.status === 429) throw new RetryableAIError("Rate limited. Please wait a moment and try again.");
+    if (res.status === 429) {
+      const seconds = Number(res.headers.get("retry-after"));
+      const waitMs = Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds * 1000, 20_000) : undefined;
+      throw new RetryableAIError("Rate limited. Please wait a moment and try again.", waitMs);
+    }
     const errBody = await res.text();
     logEvent("ai_call_failed", { stage: "http", provider: provider.name, status: res.status, reason: errBody.slice(0, 300) });
     if (res.status === 402 || res.status === 403) throw new Error("The matching service is temporarily unavailable. Please try again in a little while.");
@@ -155,7 +165,7 @@ async function callAI(rawBody: Record<string, unknown>) {
       } catch (e) {
         lastError = e;
         if (!(e instanceof RetryableAIError) || attempt === AI_MAX_ATTEMPTS) break;
-        const backoff = 400 * 2 ** (attempt - 1) + Math.random() * 250;
+        const backoff = (e as RetryableAIError).retryAfterMs ?? 400 * 2 ** (attempt - 1) + Math.random() * 250;
         logEvent("ai_call_failed", { provider: provider.name, attempt, retrying: true, reason: (e as Error).message.slice(0, 120) });
         await sleep(backoff);
       }
@@ -228,7 +238,8 @@ function detectIncomeTier(p: any): "low" | "middle" | "high" | "unknown" {
  */
 export const generateMatches = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input) => z.object({ rescoreAll: z.boolean().optional() }).optional().parse(input))
+  .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     const runTimer = startTimer();
 
@@ -260,7 +271,11 @@ export const generateMatches = createServerFn({ method: "POST" })
 
     // Stage 2, PRE-RANK. Score every row locally, drop the impossible ones, and
     // keep a category-diversified shortlist small enough to read carefully.
-    const opps = shortlistOpportunities(catalog, profile as RankProfile, 120);
+    const { data: existing } = await supabase.from("matches").select("opportunity_id").eq("user_id", userId);
+    const seen = new Set((existing ?? []).map((r) => r.opportunity_id as string));
+    const fresh = catalog.filter((o) => !seen.has(o.id));
+    const pool = data?.rescoreAll || seen.size === 0 || fresh.length < 25 ? catalog : fresh;
+    const opps = shortlistOpportunities(pool, profile as RankProfile, 120);
 
     const profileText = profileSummary(profile);
     const tier = detectIncomeTier(profile);
@@ -336,7 +351,7 @@ REASONING RULES ("Why you" / disqualifier text):
 - IDENTITY-RESTRICTED programs: lead with the demographic match, then add fit.
 - LOCATION / FIELD restricted programs: lead with the location/field match.
 - Never start with a generic "your goal of becoming a doctor". Lead with the criterion the program actually screens on.
-- SCORING BAR: Use the full 0-100 range and do not compress scores. Score 85 or above whenever the user is clearly eligible AND the program lines up with their stated interests, awards, college goals, or financial situation. Aim to place at least 15 to 25 genuinely strong, eligible opportunities at 85 or above across the whole catalog. Keep scores below 85 only when the fit is thin or speculative, and never inflate a program the user is not eligible for.
+- SCORING BAR: Use the full 0-100 range and do not compress scores. Score 80 or above whenever the user is clearly eligible AND the program lines up with their stated interests, awards, college goals, or financial situation. Aim to place at least 25 to 40 genuinely strong, eligible opportunities at 80 or above across the whole catalog. Keep scores below 80 only when the fit is thin or speculative, and never inflate a program the user is not eligible for.
 
 COLLEGE-GOAL PERSONALIZATION:
 - If the user listed dream / target / safety colleges, PRIORITIZE opportunities that (a) are institutional aid, fly-in, or admitted-student programs at THOSE specific schools, (b) are feeder / partner programs for those schools (e.g. QuestBridge for Ivies/Stanford/Duke, Posse for partner campuses, MITES for MIT, SSP for Caltech/MIT, HSSP for Harvard, RSI for MIT), or (c) strengthen the exact application profile those schools screen for. Cite the specific school by name in the reasoning when this is the reason for the fit.
@@ -428,9 +443,9 @@ COLLEGE-GOAL PERSONALIZATION:
         results.push({
           opportunity_id: r.opportunity.id,
           eligible: true,
-          // Unverified local scores are capped at 84 so they show as "close
-          // matches" and never claim the verified 85+ band. Ordering is kept.
-          score: Math.round(70 + 14 * (best > 0 ? Math.min(1, r.fused / best) : 0)),
+          // Unverified local scores are capped at 79 so they show as "close
+          // matches" and never claim the verified 80+ band. Ordering is kept.
+          score: Math.round(70 + 9 * (best > 0 ? Math.min(1, r.fused / best) : 0)),
           reasoning:
             "Matched on your profile by Ascend's on-device ranking while the personalized write-up is temporarily unavailable. Refresh your feed later to see the full explanation.",
         });

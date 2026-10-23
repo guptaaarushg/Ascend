@@ -257,6 +257,9 @@ export type Database = {
           equipment_needed: string | null
           fee_waiver_available: boolean | null
           format: string | null
+          link_checked_at: string | null
+          link_fail_count: number
+          link_status: string
           id: string
           location: string | null
           organization: string
@@ -284,6 +287,9 @@ export type Database = {
           equipment_needed?: string | null
           fee_waiver_available?: boolean | null
           format?: string | null
+          link_checked_at?: string | null
+          link_fail_count?: number
+          link_status?: string
           id?: string
           location?: string | null
           organization: string
@@ -311,6 +317,9 @@ export type Database = {
           equipment_needed?: string | null
           fee_waiver_available?: boolean | null
           format?: string | null
+          link_checked_at?: string | null
+          link_fail_count?: number
+          link_status?: string
           id?: string
           location?: string | null
           organization?: string

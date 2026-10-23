@@ -118,7 +118,7 @@ function ProfilePage() {
 
       toast.success("Profile updated. Re-matching…");
       try {
-        const res = await runMatches();
+        const res = await runMatches({ data: { rescoreAll: true } });
         toast.success(`Updated ${res.matched} matches.`);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Match refresh failed");

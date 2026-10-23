@@ -13,6 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarrierRow } from "@/components/opportunity/barrier-row";
 import { Progress } from "@/components/ui/progress";
 import { categoryLabel } from "@/lib/categories";
+import { hasAcceptanceRate, noAcceptanceNote } from "@/lib/selectivity";
+import { googleSearchUrl, hostOf, searchHint } from "@/lib/links";
 import { ArrowLeft, CalendarDays, DollarSign, ExternalLink, MapPin, Send, MessageSquare, Bookmark, CheckCircle2, Sparkles, TrendingUp, AlertTriangle, CheckCircle, ListChecks } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -27,7 +29,46 @@ type Opportunity = {
   location: string | null; remote: boolean; value_usd: number | null;
   url: string | null; tags: string[]; related_skills: string[];
   pathway_unlocks: string[]; competitiveness: string | null; underrepresented: boolean;
+  link_status?: string | null; link_checked_at?: string | null;
 };
+
+function LinkBlock({ opp }: { opp: Opportunity }) {
+  const hint = searchHint(opp);
+  const broken = opp.link_status === "broken";
+  const host = hostOf(opp.url);
+  const checked = opp.link_status === "ok" && opp.link_checked_at
+    ? new Date(opp.link_checked_at).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })
+    : null;
+  return (
+    <div className="space-y-2">
+      {opp.url && !broken && (
+        <p className="text-sm">
+          <a href={opp.url} target="_blank" rel="noopener noreferrer" className="text-primary inline-flex items-center gap-1">
+            Official page <ExternalLink className="size-3.5" />
+          </a>
+          {host && <span className="text-xs text-muted-foreground"> · {host}</span>}
+          {checked && <span className="text-xs text-muted-foreground"> · link checked {checked}</span>}
+        </p>
+      )}
+      {(broken || !opp.url) && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          <p className="font-medium">We could not confirm this program's official link.</p>
+          <p className="text-muted-foreground mt-1">Search for this to find the right page:</p>
+          <p className="mt-1 font-mono text-xs break-words">{hint}</p>
+          <Button asChild size="sm" variant="outline" className="mt-2">
+            <a href={googleSearchUrl(hint)} target="_blank" rel="noopener noreferrer">Search Google <ExternalLink className="size-3.5 ml-1" /></a>
+          </Button>
+        </div>
+      )}
+      {opp.url && !broken && (
+        <p className="text-xs text-muted-foreground">
+          Link not working? Search for <span className="font-mono">{hint}</span>{" "}
+          <a href={googleSearchUrl(hint)} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">Search Google</a>
+        </p>
+      )}
+    </div>
+  );
+}
 
 function OpportunityDetail() {
   const { id } = Route.useParams();
@@ -109,27 +150,19 @@ function OpportunityDetail() {
           <Tabs defaultValue="about">
             <TabsList>
               <TabsTrigger value="about">About</TabsTrigger>
-              <TabsTrigger value="probability">Acceptance Probability</TabsTrigger>
+              {hasAcceptanceRate(opp) && <TabsTrigger value="probability">Acceptance Probability</TabsTrigger>}
               <TabsTrigger value="eligibility">Eligibility</TabsTrigger>
               <TabsTrigger value="assistant">Ascend Assistant</TabsTrigger>
             </TabsList>
             <TabsContent value="about" className="space-y-4 mt-4">
               <Card><CardContent className="pt-6 prose prose-sm dark:prose-invert max-w-none">
                 <p>{opp.description}</p>
-                {opp.url && <p><a href={opp.url} target="_blank" rel="noopener noreferrer" className="text-primary inline-flex items-center gap-1">Official page <ExternalLink className="size-3.5" /></a></p>}
-                {opp.url && (() => {
-                  let host = "";
-                  try { host = new URL(opp.url).hostname.replace(/^www\./, ""); } catch { host = ""; }
-                  const now = new Date().toLocaleString("en-US", { month: "long", year: "numeric" });
-                  return host ? (
-                    <p className="not-prose text-xs text-muted-foreground mt-2 flex items-center gap-1.5">
-                      <CheckCircle2 className="size-3.5 text-success" />
-                      Source verified via <span className="font-medium">{host}</span> · last checked {now}
-                    </p>
-                  ) : null;
-                })()}
+                <div className="not-prose"><LinkBlock opp={opp} /></div>
                 <div className="not-prose"><BarrierRow opportunity={opp as any} /></div>
               </CardContent></Card>
+              {!hasAcceptanceRate(opp) && (
+                <Card><CardContent className="pt-6 text-sm text-muted-foreground">{noAcceptanceNote(opp)}</CardContent></Card>
+              )}
               <TranslateCard opportunityId={opp.id} />
               {opp.pathway_unlocks?.length > 0 && (
                 <Card>
@@ -161,9 +194,11 @@ function OpportunityDetail() {
                 {opp.competitiveness && <p className="text-xs pt-3 text-muted-foreground">Competitiveness: <span className="capitalize font-medium">{opp.competitiveness}</span></p>}
               </CardContent></Card>
             </TabsContent>
-            <TabsContent value="probability" className="mt-4">
-              <AcceptanceProbability opportunityId={opp.id} />
-            </TabsContent>
+            {hasAcceptanceRate(opp) && (
+              <TabsContent value="probability" className="mt-4">
+                <AcceptanceProbability opportunityId={opp.id} />
+              </TabsContent>
+            )}
             <TabsContent value="assistant" className="mt-4">
               <Assistant opportunityId={opp.id} />
             </TabsContent>

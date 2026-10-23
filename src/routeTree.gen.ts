@@ -26,6 +26,7 @@ import { Route as AuthenticatedTrackerRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedOpportunityIdRouteImport } from './routes/_authenticated/opportunity.$id'
 import { Route as ApiPublicHooksDeadlineDigestRouteImport } from './routes/api/public/hooks/deadline-digest'
 import { Route as ApiPublicHooksDeadlineSweepRouteImport } from './routes/api/public/hooks/deadline-sweep'
+import { Route as ApiPublicHooksLinkCheckRouteImport } from './routes/api/public/hooks/link-check'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -114,6 +115,11 @@ const ApiPublicHooksDeadlineSweepRoute =
     path: '/api/public/hooks/deadline-sweep',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksLinkCheckRoute = ApiPublicHooksLinkCheckRouteImport.update({
+  id: '/api/public/hooks/link-check',
+  path: '/api/public/hooks/link-check',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/opportunity/$id': typeof AuthenticatedOpportunityIdRoute
   '/api/public/hooks/deadline-digest': typeof ApiPublicHooksDeadlineDigestRoute
   '/api/public/hooks/deadline-sweep': typeof ApiPublicHooksDeadlineSweepRoute
+  '/api/public/hooks/link-check': typeof ApiPublicHooksLinkCheckRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -150,6 +157,7 @@ export interface FileRoutesByTo {
   '/opportunity/$id': typeof AuthenticatedOpportunityIdRoute
   '/api/public/hooks/deadline-digest': typeof ApiPublicHooksDeadlineDigestRoute
   '/api/public/hooks/deadline-sweep': typeof ApiPublicHooksDeadlineSweepRoute
+  '/api/public/hooks/link-check': typeof ApiPublicHooksLinkCheckRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -170,6 +178,7 @@ export interface FileRoutesById {
   '/_authenticated/opportunity/$id': typeof AuthenticatedOpportunityIdRoute
   '/api/public/hooks/deadline-digest': typeof ApiPublicHooksDeadlineDigestRoute
   '/api/public/hooks/deadline-sweep': typeof ApiPublicHooksDeadlineSweepRoute
+  '/api/public/hooks/link-check': typeof ApiPublicHooksLinkCheckRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -190,6 +199,7 @@ export interface FileRouteTypes {
     | '/opportunity/$id'
     | '/api/public/hooks/deadline-digest'
     | '/api/public/hooks/deadline-sweep'
+    | '/api/public/hooks/link-check'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -208,6 +218,7 @@ export interface FileRouteTypes {
     | '/opportunity/$id'
     | '/api/public/hooks/deadline-digest'
     | '/api/public/hooks/deadline-sweep'
+    | '/api/public/hooks/link-check'
   id:
     | '__root__'
     | '/'
@@ -227,6 +238,7 @@ export interface FileRouteTypes {
     | '/_authenticated/opportunity/$id'
     | '/api/public/hooks/deadline-digest'
     | '/api/public/hooks/deadline-sweep'
+    | '/api/public/hooks/link-check'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -236,6 +248,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   ApiPublicHooksDeadlineDigestRoute: typeof ApiPublicHooksDeadlineDigestRoute
   ApiPublicHooksDeadlineSweepRoute: typeof ApiPublicHooksDeadlineSweepRoute
+  ApiPublicHooksLinkCheckRoute: typeof ApiPublicHooksLinkCheckRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -359,6 +372,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksDeadlineSweepRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/link-check': {
+      id: '/api/public/hooks/link-check'
+      path: '/api/public/hooks/link-check'
+      fullPath: '/api/public/hooks/link-check'
+      preLoaderRoute: typeof ApiPublicHooksLinkCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -400,6 +420,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   ApiPublicHooksDeadlineDigestRoute: ApiPublicHooksDeadlineDigestRoute,
   ApiPublicHooksDeadlineSweepRoute: ApiPublicHooksDeadlineSweepRoute,
+  ApiPublicHooksLinkCheckRoute: ApiPublicHooksLinkCheckRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

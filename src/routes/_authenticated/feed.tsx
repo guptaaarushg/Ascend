@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { generateMatches, discoverOpportunities } from "@/lib/ascend.functions";
+import { generateMatches } from "@/lib/ascend.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,12 +40,10 @@ type MatchRow = {
 
 function Feed() {
   const runMatches = useServerFn(generateMatches);
-  const runDiscover = useServerFn(discoverOpportunities);
   const [matches, setMatches] = useState<MatchRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [discovering, setDiscovering] = useState(false);
   const [category, setCategory] = useState<string>("all");
   const [sort, setSort] = useState<"score" | "deadline">("score");
   const [query, setQuery] = useState("");
@@ -54,6 +52,8 @@ function Feed() {
   const [compFilter, setCompFilter] = useState<string>("all");
   const [underrepOnly, setUnderrepOnly] = useState(false);
   const [nearOnly, setNearOnly] = useState(false);
+  const [searchRows, setSearchRows] = useState<MatchRow["opportunity"][] | null>(null);
+  const [searching, setSearching] = useState(false);
   const [userPlace, setUserPlace] = useState<Place | null>(null);
   const [firstName, setFirstName] = useState<string>("");
   // Sticky per user: a $0-barrier requirement is a real constraint, not a mood.
@@ -95,6 +95,44 @@ function Feed() {
 
   useEffect(() => { load(); }, []);
 
+  const searchWords = useMemo(
+    () => query.toLowerCase().replace(/[%,()*"'`\\]/g, " ").split(/\s+/).filter((w) => w.length > 1).slice(0, 5),
+    [query],
+  );
+  const searchActive = searchWords.length > 0;
+
+  useEffect(() => {
+    if (searchWords.length === 0) {
+      setSearchRows(null);
+      setSearching(false);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      let req: any = supabase
+        .from("opportunities")
+        .select("id,title,organization,category,description,deadline,location,value_usd,underrepresented,competitiveness,application_fee,fee_waiver_available,travel_required,equipment_needed,format,remote")
+        .eq("status", "approved");
+      for (const w of searchWords) {
+        req = req.or(`title.ilike.%${w}%,organization.ilike.%${w}%,description.ilike.%${w}%`);
+      }
+      const { data, error } = await req.limit(80);
+      if (cancelled) return;
+      if (error) {
+        toast.error("Search failed. Try again in a moment.");
+        setSearchRows([]);
+      } else {
+        const rank = (o: MatchRow["opportunity"]) =>
+          searchWords.reduce((n, w) => n + (o.title.toLowerCase().includes(w) ? 2 : 0) + (o.organization.toLowerCase().includes(w) ? 1 : 0), 0);
+        const rows = ((data ?? []) as MatchRow["opportunity"][]).slice().sort((a, b) => rank(b) - rank(a) || a.title.localeCompare(b.title));
+        setSearchRows(rows);
+      }
+      setSearching(false);
+    }, 350);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [searchWords]);
+
   // Persist the $0-barrier preference so it survives sessions and devices.
   const toggleZeroBarrier = async (next: boolean) => {
     setZeroBarrier(next);
@@ -122,27 +160,11 @@ function Feed() {
     }
   };
 
-  const handleDiscover = async () => {
-    setDiscovering(true);
-    try {
-      const res = await runDiscover({ data: { focus: "auto" } });
-      if (res.discovered) {
-        toast.success(`Found ${res.discovered} new opportunities. They're queued for admin review before joining your feed.`);
-      } else {
-        toast.success(res.message ?? "No new finds");
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Discovery failed");
-    } finally {
-      setDiscovering(false);
-    }
-  };
-
-  const currentMatches = matches.filter((m) => !m.is_future && m.score >= 85);
-  const futureMatches = matches.filter((m) => !!m.is_future && m.score >= 85);
+  const currentMatches = matches.filter((m) => !m.is_future && m.score >= 80);
+  const futureMatches = matches.filter((m) => !!m.is_future && m.score >= 80);
   // Fallback lane: 70 to 84. Never shown alongside strong matches, only when
   // the strong lane is empty, so the feed is never a dead end on first run.
-  const closeMatches = matches.filter((m) => !m.is_future && m.score >= 70 && m.score < 85);
+  const closeMatches = matches.filter((m) => !m.is_future && m.score >= 70 && m.score < 80);
   const sortFn = (a: MatchRow, b: MatchRow) => {
     if (sort === "score") return (b.score + locationFit(userPlace, b.opportunity).score * 0.4) - (a.score + locationFit(userPlace, a.opportunity).score * 0.4);
     const ad = a.opportunity?.deadline ?? "9999-12-31";
@@ -150,9 +172,7 @@ function Feed() {
     return ad.localeCompare(bd);
   };
   const q = query.trim().toLowerCase();
-  const filterFn = (m: MatchRow) => {
-    const o = m.opportunity;
-    if (!o) return false;
+  const passesFilters = (o: MatchRow["opportunity"]) => {
     if (category !== "all" && normalizeCategory(o.category) !== category) return false;
     if (zeroBarrier && !isZeroBarrier(o)) return false;
     if (locationFilter === "remote" && !isOnline(o)) return false;
@@ -161,12 +181,11 @@ function Feed() {
     if (awardFilter === "award" && !normalizeOpportunityValue(o.value_usd, o.description)) return false;
     if (compFilter !== "all" && (o.competitiveness ?? "").toLowerCase() !== compFilter) return false;
     if (underrepOnly && !o.underrepresented) return false;
-    if (q) {
-      const hay = `${o.title} ${o.organization} ${o.description} ${o.location ?? ""}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
     return true;
   };
+  const filterFn = (m: MatchRow) => !!m.opportunity && passesFilters(m.opportunity);
+  const visibleSearch = (searchRows ?? []).filter((o) => passesFilters(o));
+  const matchById = new Map(matches.filter((m) => m.opportunity).map((m) => [m.opportunity.id, m]));
   const filtered = currentMatches.filter(filterFn).sort(sortFn);
   const filteredFuture = futureMatches.filter(filterFn).sort((a, b) => b.score - a.score);
   const filteredClose = closeMatches.filter(filterFn).sort(sortFn);
@@ -235,10 +254,7 @@ function Feed() {
           <Button asChild variant="outline">
             <Link to="/export">Share with counselor</Link>
           </Button>
-          <Button onClick={handleDiscover} disabled={discovering || refreshing} variant="outline">
-            {discovering ? "Searching web…" : "Discover new"}
-          </Button>
-          <Button onClick={handleRefresh} disabled={refreshing || discovering} variant="outline">
+          <Button onClick={handleRefresh} disabled={refreshing} variant="outline">
             {refreshing ? "Matching…" : "Refresh"}
           </Button>
 
@@ -311,7 +327,24 @@ function Feed() {
             : `${filtered.length} matches ready${filteredFuture.length ? `, plus ${filteredFuture.length} future goals` : ""}`}
       </p>
 
-      {loading ? (
+      {searchActive ? (
+        <div className="grid gap-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold tracking-tight">Search results</h2>
+            <span className="text-xs text-muted-foreground">
+              {searching ? "Searching…" : `${visibleSearch.length}${(searchRows?.length ?? 0) >= 80 ? "+" : ""} found`}
+            </span>
+          </div>
+          {!searching && visibleSearch.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No programs found for "{query.trim()}". Try fewer words, or the program's short name, like "USACO" or "QuestBridge".
+            </p>
+          )}
+          {visibleSearch.map((o) => (
+            <SearchResultCard key={o.id} opp={o} score={matchById.get(o.id)?.score ?? null} place={userPlace} />
+          ))}
+        </div>
+      ) : loading ? (
         <div className="grid gap-4">
           {[1,2,3].map(i => <div key={i} className="h-40 rounded-xl bg-muted animate-pulse" />)}
         </div>
@@ -330,9 +363,9 @@ function Feed() {
           {showClose && (
             <div>
               <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4 text-sm mb-4">
-                <p className="font-medium">No 85+ matches here yet, so here are your closest fits</p>
+                <p className="font-medium">No 80+ matches here yet, so here are your closest fits</p>
                 <p className="text-muted-foreground mt-1">
-                  These scored between 70 and 84. They are worth a look while you strengthen your Life Profile, which is what pushes scores into the 85+ lane.
+                  These scored between 70 and 79. They are worth a look while you strengthen your Life Profile, which is what pushes scores into the 80+ lane.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button asChild size="sm"><Link to="/profile">Strengthen my profile</Link></Button>
@@ -351,7 +384,7 @@ function Feed() {
             <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4 text-sm">
               <p className="font-medium">Want more than {filtered.length} strong matches?</p>
               <p className="text-muted-foreground mt-1">
-                Hit Refresh to rescan the full catalog, or add more to your Life Profile. Only opportunities scoring 85 or above ever show up here.
+                Hit Refresh to bring in new programs from the full catalog, or add more to your Life Profile. Only opportunities scoring 80 or above show up here.
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button onClick={handleRefresh} disabled={refreshing} size="sm">
@@ -481,6 +514,45 @@ function OpportunityCard({ match, place }: { match: MatchRow; place: Place | nul
             </Button>
           </div>
 
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SearchResultCard({ opp: o, score, place }: { opp: MatchRow["opportunity"]; score: number | null; place: Place | null }) {
+  const fit = locationFit(place, o);
+  const daysToDeadline = o.deadline ? Math.ceil((new Date(o.deadline).getTime() - Date.now()) / 86400000) : null;
+  return (
+    <Card className="overflow-hidden transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/30">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5 flex-wrap">
+              <span className="uppercase tracking-wider text-[10px] font-semibold text-primary/80 px-2 py-0.5 rounded-full bg-primary/10 ring-1 ring-primary/20">{categoryLabel(o.category)}</span>
+              <span>·</span>
+              <span>{o.organization}</span>
+              {o.underrepresented && <Badge variant="secondary" className="ml-1 text-[10px]">Underrepresented-friendly</Badge>}
+            </div>
+            <h3 className="text-lg font-semibold leading-tight">{o.title}</h3>
+            <p className="mt-2 text-sm text-muted-foreground line-clamp-2">{o.description}</p>
+            <BarrierRow opportunity={o} />
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+              <span>{o.deadline ? `${deadlineLabel(o.deadline)}${daysToDeadline !== null && daysToDeadline >= 0 ? ` (${daysToDeadline}d)` : ""}` : deadlineLabel(null)}</span>
+              {o.location && <span>{o.location}</span>}
+              {fit.label && <Badge variant={fit.kind === "elsewhere" ? "outline" : "secondary"} className="text-[10px]">{fit.label}</Badge>}
+              {(() => {
+                const v = normalizeOpportunityValue(o.value_usd, o.description);
+                return v ? <span title={v.label}>{formatOpportunityValue(v)}</span> : null;
+              })()}
+            </div>
+          </div>
+          <div className="flex flex-col items-center gap-3 shrink-0">
+            {score !== null && <MatchScore score={score} />}
+            <Button asChild size="default" className="font-medium">
+              <Link to="/opportunity/$id" params={{ id: o.id }}>Open</Link>
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
