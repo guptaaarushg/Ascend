@@ -15,6 +15,8 @@ export type HoloMilestone = {
   action_steps?: string[];
   targets?: string[];
   checkpoint?: string;
+  school_year?: string | null;
+  stage?: string | null;
 };
 
 type SceneColors = { primary: string; secondary: string; stage: string };
@@ -384,7 +386,7 @@ export function HologramRoadmap({ milestones, opportunityTitles = {} }: { milest
         <div key={active} className="pointer-events-none absolute bottom-3 left-3 right-3 animate-fade-in sm:bottom-5 sm:left-5 sm:right-auto sm:max-w-sm">
           <div className="rounded-xl border p-4 backdrop-blur-md" style={{ background: "rgba(20,17,15,0.72)", borderColor: "rgba(224,90,71,0.45)", color: "#fdfbf7" }}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: colors.primary }}>
-              Year {milestone.year} · Step {active + 1} of {count}
+              Year {milestone.year}{milestone.school_year ? ` · ${milestone.school_year}` : ""}{milestone.stage ? ` · ${milestone.stage}` : ""} · Step {active + 1} of {count}
             </p>
             <p className="mt-1 text-base font-semibold leading-snug">{milestone.title}</p>
             <div className="mt-3 h-1 overflow-hidden rounded-full" style={{ background: "rgba(253,251,247,0.15)" }}>
@@ -411,7 +413,7 @@ export function HologramRoadmap({ milestones, opportunityTitles = {} }: { milest
         </div>
         <div key={active} className="grid animate-fade-in gap-5 md:grid-cols-[minmax(0,1.4fr)_minmax(240px,0.6fr)]">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Year {milestone.year}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Year {milestone.year}{milestone.school_year ? ` · ${milestone.school_year}` : ""}{milestone.stage ? ` · ${milestone.stage}` : ""}</p>
             <h4 className="mt-1 text-xl font-semibold sm:text-2xl">{milestone.title}</h4>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">{milestone.description}</p>
             {milestone.why_you && <p className="mt-3 rounded-lg bg-primary/5 p-3 text-sm"><span className="font-medium text-primary">Why this fits you: </span>{milestone.why_you}</p>}

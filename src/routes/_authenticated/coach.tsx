@@ -83,7 +83,7 @@ function CoachPage() {
           {messages.length === 1 && (
             <div className="flex flex-wrap gap-1.5">
               {quick.map((q) => (
-                <Button key={q} size="sm" variant="outline" onClick={() => send(q)}>{q}</Button>
+                <Button key={q} size="sm" variant="outline" className="h-auto whitespace-normal text-left py-1.5" onClick={() => send(q)}>{q}</Button>
               ))}
             </div>
           )}
@@ -92,9 +92,10 @@ function CoachPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
+              aria-label="Message the coach"
               placeholder="Ask anything…"
             />
-            <Button onClick={() => send()} disabled={sending || !input.trim()}>
+            <Button onClick={() => send()} disabled={sending || !input.trim()} aria-label="Send message">
               <Send className="size-4" />
             </Button>
           </div>

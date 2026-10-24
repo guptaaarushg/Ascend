@@ -28,8 +28,11 @@ export function BarrierRow({
           What it actually takes
         </span>
         {zero && (
-          <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-success/12 text-success ring-1 ring-success/25">
-            $0 barrier
+          <span
+            title="No application fee and no required travel. Program tuition and other costs are not verified."
+            className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-success/12 text-success ring-1 ring-success/25"
+          >
+            $0 to apply
           </span>
         )}
       </div>
@@ -44,6 +47,11 @@ export function BarrierRow({
           </span>
         ))}
       </div>
+      {!compact && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Tuition, housing, and other program costs are not tracked here. Confirm them on the program's site before you plan around this one.
+        </p>
+      )}
     </div>
   );
 }

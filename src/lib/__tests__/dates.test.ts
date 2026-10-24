@@ -44,3 +44,55 @@ describe("todayPacific", () => {
     expect(todayPacific(new Date("2026-10-24T20:00:00Z"))).toBe("2026-10-24");
   });
 });
+
+import { buildSchoolYearPlan, gradeFromText, parseSeniorStart } from "@/lib/dates";
+
+describe("parseSeniorStart", () => {
+  it("treats an application season as the start of senior year", () => {
+    expect(parseSeniorStart("Fall 2027")).toBe(2027);
+    expect(parseSeniorStart("2028")).toBe(2028);
+  });
+  it("treats a class year as graduating the following spring", () => {
+    expect(parseSeniorStart("Class of 2028")).toBe(2027);
+  });
+  it("returns null when no year is given", () => {
+    expect(parseSeniorStart("")).toBeNull();
+    expect(parseSeniorStart("soon")).toBeNull();
+  });
+});
+
+describe("gradeFromText", () => {
+  it("reads grades and class names", () => {
+    expect(gradeFromText("High school junior")).toBe(11);
+    expect(gradeFromText("10th grade")).toBe(10);
+    expect(gradeFromText("High School")).toBeNull();
+  });
+});
+
+describe("buildSchoolYearPlan", () => {
+  it("anchors years to school years and grades from the application year", () => {
+    const plan = buildSchoolYearPlan({ today: "2026-10-23", years: 4, eduLevel: "high_school", applicationText: "Fall 2027" });
+    expect(plan.map((p) => p.schoolYear)).toEqual(["2026-27", "2027-28", "2028-29", "2029-30"]);
+    expect(plan.map((p) => p.stage)).toEqual(["11th grade", "12th grade", "college year 1", "college year 2"]);
+  });
+  it("never puts a high-school student in college before graduating", () => {
+    const plan = buildSchoolYearPlan({ today: "2026-10-23", years: 8, eduLevel: "high_school", applicationText: "Fall 2028" });
+    expect(plan[0].stage).toBe("10th grade");
+    expect(plan[2].stage).toBe("12th grade");
+    expect(plan[3].stage).toBe("college year 1");
+    expect(plan[7].stage).toBe("after college year 4");
+  });
+  it("uses the school year that began in August when today is in the spring", () => {
+    const plan = buildSchoolYearPlan({ today: "2027-03-10", years: 2, eduLevel: "high_school", educationText: "11th grade" });
+    expect(plan[0].schoolYear).toBe("2026-27");
+    expect(plan[0].stage).toBe("11th grade");
+  });
+  it("leaves stages empty when the grade is unknown", () => {
+    const plan = buildSchoolYearPlan({ today: "2026-10-23", years: 3, eduLevel: "high_school" });
+    expect(plan.every((p) => p.stage === null)).toBe(true);
+  });
+  it("does not guess stages for other education levels", () => {
+    const plan = buildSchoolYearPlan({ today: "2026-10-23", years: 2, eduLevel: "undergraduate", applicationText: "Fall 2027" });
+    expect(plan.every((p) => p.stage === null)).toBe(true);
+  });
+});

@@ -68,6 +68,7 @@ function AuthLayout() {
               <Link
                 key={item.to}
                 to={item.to}
+                aria-label={item.label}
                 className={cn(
                   "px-2.5 sm:px-3 py-1.5 rounded-md text-sm flex items-center gap-1.5 shrink-0 hover:bg-accent/40 transition",
                   location.pathname === item.to && "bg-accent/60 text-accent-foreground font-medium"
@@ -77,7 +78,7 @@ function AuthLayout() {
                 <span className="hidden sm:inline">{item.label}</span>
               </Link>
             ))}
-            <Button variant="ghost" size="sm" onClick={handleSignOut} className="ml-2">
+            <Button variant="ghost" size="sm" onClick={handleSignOut} className="ml-2" aria-label="Sign out">
               <LogOut className="size-4" />
             </Button>
           </nav>

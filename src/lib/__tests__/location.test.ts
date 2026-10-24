@@ -83,3 +83,21 @@ describe("locationFit", () => {
     expect(isOnline({ remote: true, format: "in_person", location: "Boston, MA" })).toBe(false);
   });
 });
+
+import { cleanLocation } from "@/lib/location";
+
+describe("cleanLocation", () => {
+  it("hides placeholder values", () => {
+    for (const v of [null, undefined, "", "null", "NULL", "None", "N/A", "unknown"]) expect(cleanLocation(v)).toBeNull();
+  });
+  it("collapses repeated Online text", () => {
+    expect(cleanLocation("Online Online")).toBe("Online");
+    expect(cleanLocation("Online, Online")).toBe("Online");
+    expect(cleanLocation("online / online")).toBe("online");
+  });
+  it("keeps real locations and drops duplicate segments", () => {
+    expect(cleanLocation("Cambridge, MA")).toBe("Cambridge, MA");
+    expect(cleanLocation("Boston, MA; Boston, MA")).toBe("Boston, MA");
+    expect(cleanLocation("Boston, MA; null")).toBe("Boston, MA");
+  });
+});

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { lifePathSimulate } from "@/lib/ascend.functions";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { HologramRoadmap } from "@/components/life-path/hologram-roadmap";
 
 
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/life-path")({
   head: () => ({ meta: [
@@ -37,6 +38,8 @@ type Milestone = {
   action_steps?: string[];
   targets?: string[];
   checkpoint?: string;
+  school_year?: string | null;
+  stage?: string | null;
 };
 type Insights = { strengths?: string[]; gaps?: string[]; financial_strategy?: string } | null;
 type Path = {
@@ -50,8 +53,8 @@ type Path = {
 
 function LifePath() {
   const run = useServerFn(lifePathSimulate);
-  const [goal, setGoal] = useState("Physician");
-  const [field, setField] = useState("Biology / Pre-Med");
+  const [goal, setGoal] = useState("");
+  const [field, setField] = useState("");
   const [edu, setEdu] = useState("high_school");
   const [years, setYears] = useState(4);
   const [loading, setLoading] = useState(false);
@@ -60,6 +63,50 @@ function LifePath() {
   const [insights, setInsights] = useState<Insights>(null);
   const [oppTitles, setOppTitles] = useState<Record<string, string>>({});
   const [view, setView] = useState<"3d" | "list">("3d");
+  const [storageKey, setStorageKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user || cancelled) return;
+      const key = `ascend:life-path:${u.user.id}`;
+      setStorageKey(key);
+      try {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (Array.isArray(saved.paths) && saved.paths.length > 0) {
+            setGoal(String(saved.goal ?? ""));
+            setField(String(saved.field ?? ""));
+            setEdu(String(saved.edu ?? "high_school"));
+            setYears(Number(saved.years) || 4);
+            setPaths(saved.paths);
+            setExplanation(String(saved.explanation ?? ""));
+            setInsights(saved.insights ?? null);
+            setOppTitles(saved.oppTitles ?? {});
+            return;
+          }
+        }
+      } catch {}
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("career_interests,academic_interests,intended_major,education_level")
+        .eq("id", u.user.id)
+        .maybeSingle();
+      if (!p || cancelled) return;
+      const career = (p.career_interests as string[] | null)?.[0] ?? "";
+      const major = (p.intended_major as string | null) || (p.academic_interests as string[] | null)?.[0] || "";
+      if (career) setGoal(career);
+      if (major) setField(major);
+      const level = String(p.education_level ?? "").toLowerCase();
+      if (/middle/.test(level)) setEdu("middle_school");
+      else if (/high|9th|10th|11th|12th|freshman|sophomore|junior|senior/.test(level)) setEdu("high_school");
+      else if (/undergrad|college|bachelor/.test(level)) setEdu("undergraduate");
+      else if (/grad|master|phd|doctor/.test(level)) setEdu("graduate");
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
 
   const simulate = async () => {
@@ -78,7 +125,16 @@ function LifePath() {
       setPaths(nextPaths);
       setExplanation(res.explanation);
       setInsights(("profile_insights" in res ? (res.profile_insights as Insights) : null) ?? null);
-      setOppTitles(("opportunity_titles" in res ? (res.opportunity_titles as Record<string, string>) : {}) ?? {});
+      const nextInsights = (("profile_insights" in res ? (res.profile_insights as Insights) : null) ?? null);
+      const nextTitles = (("opportunity_titles" in res ? (res.opportunity_titles as Record<string, string>) : {}) ?? {});
+      setOppTitles(nextTitles);
+      if (storageKey) {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify({
+            goal, field, edu, years, paths: nextPaths, explanation: res.explanation, insights: nextInsights, oppTitles: nextTitles,
+          }));
+        } catch {}
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally {
@@ -104,7 +160,7 @@ function LifePath() {
         <CardContent className="grid gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
           <div className="space-y-1.5">
             <Label htmlFor="life-goal">Career goal</Label>
-            <Input id="life-goal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="e.g. Physician" />
+            <Input id="life-goal" value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="e.g. Physician" autoComplete="off" />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="life-field">Major / field</Label>
@@ -249,7 +305,7 @@ function LifePath() {
                             <CardContent className="pt-5">
                               <div className="flex items-start justify-between gap-3">
                                 <div>
-                                  <div className="text-[11px] uppercase tracking-wider text-primary font-semibold">Milestone {String(idx + 1).padStart(2, "0")} · Year {m.year}</div>
+                                  <div className="text-[11px] uppercase tracking-wider text-primary font-semibold">Milestone {String(idx + 1).padStart(2, "0")} · Year {m.year}{m.school_year ? ` · ${m.school_year}` : ""}{m.stage ? ` · ${m.stage}` : ""}</div>
                                   <h3 className="font-semibold mt-0.5 text-base">{m.title}</h3>
                                 </div>
                                 <Badge variant="outline" className="shrink-0 text-[10px] border-primary/30 text-primary">

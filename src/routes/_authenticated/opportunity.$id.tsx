@@ -14,6 +14,7 @@ import { BarrierRow } from "@/components/opportunity/barrier-row";
 import { Progress } from "@/components/ui/progress";
 import { categoryLabel } from "@/lib/categories";
 import { daysUntilDeadline, formatDeadline } from "@/lib/dates";
+import { cleanLocation } from "@/lib/location";
 import { hasAcceptanceRate, noAcceptanceNote } from "@/lib/selectivity";
 import { googleSearchUrl, hostOf, searchHint } from "@/lib/links";
 import { ArrowLeft, CalendarDays, DollarSign, ExternalLink, MapPin, Send, MessageSquare, Bookmark, CheckCircle2, Sparkles, TrendingUp, AlertTriangle, CheckCircle, ListChecks } from "lucide-react";
@@ -128,7 +129,7 @@ function OpportunityDetail() {
         <h1 className="mt-2 text-3xl sm:text-4xl font-bold leading-tight">{opp.title}</h1>
         <div className="mt-4 flex flex-wrap gap-4 text-sm opacity-95">
           <span className="flex items-center gap-1.5"><CalendarDays className="size-4" />{opp.deadline ? <>Due {formatDeadline(opp.deadline)}{daysToDeadline !== null && daysToDeadline >= 0 && ` · ${daysToDeadline} days`}</> : "Deadline not listed, check the program site"}</span>
-          {opp.location && <span className="flex items-center gap-1.5"><MapPin className="size-4" />{opp.location}{opp.remote && " (remote)"}</span>}
+          {cleanLocation(opp.location) && <span className="flex items-center gap-1.5"><MapPin className="size-4" />{cleanLocation(opp.location)}{opp.remote && " (remote)"}</span>}
           {(() => {
             const v = normalizeOpportunityValue(opp.value_usd, opp.description);
             return v ? (
@@ -149,7 +150,7 @@ function OpportunityDetail() {
       <div className="grid lg:grid-cols-3 gap-6 mt-6">
         <div className="lg:col-span-2 space-y-4">
           <Tabs defaultValue="about">
-            <TabsList>
+            <TabsList className="flex h-auto w-full flex-wrap justify-start">
               <TabsTrigger value="about">About</TabsTrigger>
               {hasAcceptanceRate(opp) && <TabsTrigger value="probability">Acceptance Probability</TabsTrigger>}
               <TabsTrigger value="eligibility">Eligibility</TabsTrigger>
@@ -282,7 +283,7 @@ function Assistant({ opportunityId }: { opportunityId: string }) {
         )}
         <div className="flex gap-2">
           <Input value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder="Ask anything about this opportunity…" />
-          <Button onClick={() => send()} disabled={sending || !input.trim()}><Send className="size-4" /></Button>
+          <Button onClick={() => send()} disabled={sending || !input.trim()} aria-label="Send message"><Send className="size-4" /></Button>
         </div>
       </div>
     </Card>
@@ -300,6 +301,8 @@ function AcceptanceProbability({ opportunityId }: { opportunityId: string }) {
     weaknesses: string[];
     action_plan: { action: string; impact: string }[];
     summary: string;
+    readiness: { requirement: string; status: "met" | "not_met" | "unknown"; note: string }[];
+    missing_info: string[];
     completeness: number;
     match_score: number | null;
   } | null>(null);
@@ -349,6 +352,40 @@ function AcceptanceProbability({ opportunityId }: { opportunityId: string }) {
         </CardContent>
       </Card>
 
+      {(data.readiness?.length ?? 0) > 0 && (
+        <Card>
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><ListChecks className="size-4 text-primary" /> Readiness checklist</CardTitle></CardHeader>
+          <CardContent>
+            <ul className="space-y-2.5 text-sm">
+              {data.readiness.map((r, i) => (
+                <li key={i} className="flex gap-2.5">
+                  <span
+                    className={`mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
+                      r.status === "met" ? "bg-success/15 text-success" : r.status === "not_met" ? "bg-warning/15 text-warning" : "bg-muted text-muted-foreground"
+                    }`}
+                    aria-label={r.status === "met" ? "Met" : r.status === "not_met" ? "Not met" : "Unknown"}
+                  >
+                    {r.status === "met" ? "✓" : r.status === "not_met" ? "!" : "?"}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="font-medium">{r.requirement}</span>
+                    {r.note && <span className="block text-muted-foreground">{r.note}</span>}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {(data.missing_info?.length ?? 0) > 0 && (
+              <div className="mt-4 rounded-md border border-border bg-muted/40 p-3">
+                <p className="text-xs font-semibold">Answer these to sharpen the estimate</p>
+                <ul className="mt-1.5 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                  {data.missing_info.map((q, i) => <li key={i}>{q}</li>)}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader><CardTitle className="text-base flex items-center gap-2"><TrendingUp className="size-4 text-primary" /> Probability projection</CardTitle></CardHeader>
         <CardContent className="space-y-4">
@@ -369,6 +406,9 @@ function AcceptanceProbability({ opportunityId }: { opportunityId: string }) {
           <p className="text-sm">
             Increase probability from <span className="font-semibold">{data.probability}%</span> to approximately{" "}
             <span className="font-semibold text-success">{data.potential_probability}%</span> by completing the actions below.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            These percentages are AI estimates based on your profile and the program description, not official admissions statistics. The checklist above shows what is confirmed and what is still unknown.
           </p>
         </CardContent>
       </Card>

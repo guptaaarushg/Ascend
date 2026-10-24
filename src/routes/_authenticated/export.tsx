@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Mail, FileDown } from "lucide-react";
 import { categoryLabel } from "@/lib/categories";
 import { daysUntilDeadline, formatDeadline } from "@/lib/dates";
+import { cleanLocation } from "@/lib/location";
 
 export const Route = createFileRoute("/_authenticated/export")({
   head: () => ({ meta: [{ title: "Counselor report, Ascend" }] }),
@@ -198,7 +199,7 @@ function ExportPage() {
                       {categoryLabel(r.opportunity!.category)}
                       {r.opportunity!.deadline && <> · Due {formatDeadline(r.opportunity!.deadline)}</>}
                       {r.opportunity!.value_usd ? <> · ${r.opportunity!.value_usd.toLocaleString()}</> : null}
-                      {r.opportunity!.location && <> · {r.opportunity!.location}</>}
+                      {cleanLocation(r.opportunity!.location) && <> · {cleanLocation(r.opportunity!.location)}</>}
                     </div>
                     <p className="mt-1.5 text-sm">{r.opportunity!.description}</p>
                     <p className="mt-1 text-sm"><span className="font-semibold text-primary">Why this fits: </span>{r.reasoning}</p>

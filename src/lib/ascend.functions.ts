@@ -5,7 +5,7 @@ import { containsProfanity, FAMILY_FRIENDLY_MESSAGE } from "@/lib/profanity";
 import { sanitizeText } from "@/lib/validation";
 import { shortlistOpportunities, hybridRank, type RankProfile } from "@/lib/matching";
 import { tablesToLists } from "@/lib/chat-format";
-import { todayPacific } from "@/lib/dates";
+import { buildSchoolYearPlan, todayPacific } from "@/lib/dates";
 import { logEvent, recordEvent, startTimer } from "@/lib/observability";
 
 
@@ -847,7 +847,11 @@ export const acceptanceAnalysis = createServerFn({ method: "POST" })
     const completeness = Math.round((filled / fields.length) * 100);
 
     const tier = detectIncomeTier(profile);
-    const sys = `You are Ascend's Acceptance Probability Engine. Estimate the realistic probability (0-100) that THIS user is accepted to THIS opportunity. Combine: eligibility fit, profile depth vs. competitiveness, demographic alignment, experience overlap, deadline pressure, and historical norms for similar programs. Be honest, do not inflate. Then produce strengths, weaknesses, and an Action Plan: 3-6 concrete steps the user can take to raise their probability, with an estimated new probability after completing them. Confidence reflects how much signal you had from the profile (low/medium/high). Profile completeness: ${completeness}%. Match score (if available): ${match?.score ?? "n/a"}. User income tier: ${tier}.`;
+    const sys = `You are Ascend's Acceptance Probability Engine. Estimate the realistic probability (0-100) that THIS user is accepted to THIS opportunity. Combine: eligibility fit, profile depth vs. competitiveness, demographic alignment, experience overlap, deadline pressure, and historical norms for similar programs. Be honest, do not inflate. Then produce strengths, weaknesses, and an Action Plan: 3-6 concrete steps the user can take to raise their probability, with an estimated new probability after completing them. Confidence reflects how much signal you had from the profile (low/medium/high). The probability is an approximate estimate, not official admissions data. Profile completeness: ${completeness}%. Match score (if available): ${match?.score ?? "n/a"}. User income tier: ${tier}.
+
+READINESS CHECKLIST: also list 4 to 8 specific requirements taken from the opportunity's eligibility and description (grade level, age, residency, GPA, documents, essays, recommendations, test scores, fees). For each, set status to "met" ONLY if the profile states it, "not_met" ONLY if the profile clearly contradicts it, and "unknown" if the profile is silent. Never guess. Add a note of at most 25 words naming the profile fact that supports the status, or the exact information that is missing. Then list up to 5 short questions in missing_info whose answers would make the estimate more reliable.
+
+${TRUTHFULNESS_RULES}`;
 
     const userMsg = `OPPORTUNITY:
 ${opp.title}, ${opp.organization} (${opp.category})
@@ -890,8 +894,22 @@ ${profileSummary(profile)}`;
                 },
               },
               summary: { type: "string" },
+              readiness: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    requirement: { type: "string" },
+                    status: { type: "string", enum: ["met", "not_met", "unknown"] },
+                    note: { type: "string" },
+                  },
+                  required: ["requirement", "status", "note"],
+                  additionalProperties: false,
+                },
+              },
+              missing_info: { type: "array", items: { type: "string" } },
             },
-            required: ["probability","potential_probability","confidence","strengths","weaknesses","action_plan","summary"],
+            required: ["probability","potential_probability","confidence","strengths","weaknesses","action_plan","summary","readiness","missing_info"],
             additionalProperties: false,
           },
         },
@@ -909,6 +927,15 @@ ${profileSummary(profile)}`;
       weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses.slice(0, 8).map(String) : [],
       action_plan: Array.isArray(parsed.action_plan) ? parsed.action_plan.slice(0, 8) : [],
       summary: String(parsed.summary ?? ""),
+      readiness: (Array.isArray(parsed.readiness) ? parsed.readiness : [])
+        .slice(0, 10)
+        .map((r: any) => ({
+          requirement: String(r?.requirement ?? ""),
+          status: ["met", "not_met", "unknown"].includes(r?.status) ? (r.status as "met" | "not_met" | "unknown") : "unknown",
+          note: String(r?.note ?? ""),
+        }))
+        .filter((r: { requirement: string }) => r.requirement),
+      missing_info: Array.isArray(parsed.missing_info) ? parsed.missing_info.slice(0, 5).map(String) : [],
       completeness,
       match_score: match?.score ?? null,
     };
@@ -1053,11 +1080,32 @@ export const lifePathSimulate = createServerFn({ method: "POST" })
       .join("\n");
     const oppCatalog = lines.join("\n");
     const today = todayPacific();
+    const plan = buildSchoolYearPlan({
+      today,
+      years: data.years,
+      eduLevel: data.education_level,
+      applicationText: (profile as any)?.college_application_year,
+      educationText: (profile as any)?.education_level,
+    });
+    const planLines = plan.map((p) => `Year ${p.year} = ${p.schoolYear} school year${p.stage ? ` (${p.stage})` : ""}`).join("\n");
+    const stageKnown = plan.some((p) => p.stage);
+    const withPlan = (milestone: any) => ({
+      ...milestone,
+      school_year: plan[Number(milestone.year) - 1]?.schoolYear ?? null,
+      stage: plan[Number(milestone.year) - 1]?.stage ?? null,
+    });
 
     const pathCount = data.years <= 5 ? "3" : "2";
     const sys = `You are Ascend's Life Path Simulator, a sharp, warm college and career mentor for a high school student. Today is ${today}.
 
 Generate exactly ${pathCount} genuinely different pathways over ${data.years} years, one milestone per year. If there are 3: a primary path, a stretch path, and an alternative discipline or affordable route. If there are 2: a primary path and an alternative or more affordable route.
+
+TIMELINE RULES (most important):
+- Anchor every milestone to the SCHOOL-YEAR TIMELINE in the user message. Mention the school year, and the stage when it is known, in each description. If the stage is not known, say so in the explanation and do not assume the student's grade.
+- State the timeline assumption in one sentence in the explanation, for example which school year you assumed they start senior year.
+- College applications are submitted in the fall of senior year, and a student cannot attend college before finishing 12th grade. Applying, being admitted, and attending are separate steps. Put "attending" only in years after graduation, and never write "senior year at" a college unless the timeline shows college year 4.
+- Use each program's real deadline month in the matching school year. If a catalog deadline is already past (today is ${today}), plan for the next cycle and tell the student to confirm the new dates.
+- Do not claim a past achievement unless it is in the profile or in an earlier milestone of the same path. Admissions, scholarships, and funding are conditional: write "apply for" or "if admitted", never "you will receive" or "waived".
 
 DEPTH AND SPECIFICITY RULES (most important):
 - Each path must contain exactly ${data.years} milestones, one for every year from 1 to ${data.years}, numbered in order. Count them before answering. Never skip, merge, or stop early, and give the later years the same detail as the early ones.
@@ -1086,6 +1134,9 @@ FIELD: ${data.field}
 EDUCATION LEVEL: ${data.education_level}
 TIME HORIZON: ${data.years} years
 
+SCHOOL-YEAR TIMELINE (today is ${today}; school years start in August):
+${planLines}
+${stageKnown ? "" : "The student's current grade is not known. Do not assume it.\n"}
 USER PROFILE:
 ${profile ? profileSummary(profile) : "(not completed)"}
 
@@ -1163,7 +1214,8 @@ ${oppCatalog}`;
     }
     if (!Array.isArray(parsed.paths) || parsed.paths.length === 0) {
       logEvent("ai_fallback_used", { route: "life_path", reason: aiFailure || (ai ? "no_paths_in_response" : "timeout_or_no_response") });
-      return createFallbackLifePaths(data.career_goal, data.field, data.years);
+      const fallback = createFallbackLifePaths(data.career_goal, data.field, data.years) as any;
+      return { ...fallback, paths: fallback.paths.map((fp: any) => ({ ...fp, milestones: fp.milestones.map(withPlan) })) };
     }
     const totalYears = data.years;
     const tidyMilestones = (raw: any[]) => {
@@ -1233,7 +1285,7 @@ ${oppCatalog}`;
       }
       for (const y of missing) byYear.set(y, starter[y - 1]);
       const milestones = Array.from({ length: totalYears }, (_, i) => byYear.get(i + 1)).filter(Boolean);
-      return { ...p, milestones };
+      return { ...p, milestones: milestones.map(withPlan) };
     }));
     return {
       explanation: String(parsed.explanation ?? ""),

@@ -180,3 +180,24 @@ export function locationFit(user: Place | null | undefined, o: LocatableOpportun
   }
   return result;
 }
+
+const EMPTY_LOCATIONS = new Set(["", "null", "none", "n/a", "na", "undefined", "tbd", "unknown"]);
+
+export function cleanLocation(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const parts = raw
+    .split(/\s*[;|]\s*|,\s*(?=online\b|virtual\b|remote\b)/i)
+    .map((p) => p.trim())
+    .filter((p) => !EMPTY_LOCATIONS.has(p.toLowerCase()));
+  const seen = new Set<string>();
+  const kept: string[] = [];
+  for (const part of parts) {
+    const collapsed = part.replace(/\b(online|virtual|remote)(\s*[,/&-]?\s*\1\b)+/gi, "$1");
+    const key = collapsed.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      kept.push(collapsed);
+    }
+  }
+  return kept.length > 0 ? kept.join("; ") : null;
+}

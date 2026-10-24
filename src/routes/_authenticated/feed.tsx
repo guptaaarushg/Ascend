@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { OPPORTUNITY_CATEGORIES, categoryLabel, normalizeCategory, deadlineLabel } from "@/lib/categories";
 import { normalizeOpportunityValue, formatOpportunityValue } from "@/lib/opportunity-value";
 import { isZeroBarrier } from "@/lib/barriers";
-import { hasPlace, isOnline, locationFit, parsePlace, type Place } from "@/lib/location";
+import { cleanLocation, hasPlace, isOnline, locationFit, parsePlace, type Place } from "@/lib/location";
 import { daysUntilDeadline } from "@/lib/dates";
 import { BarrierRow } from "@/components/opportunity/barrier-row";
 import { Switch } from "@/components/ui/switch";
@@ -496,7 +496,7 @@ function OpportunityCard({ match, place }: { match: MatchRow; place: Place | nul
                   : deadlineLabel(null)}
               </span>
 
-              {o.location && <span>{o.location}</span>}
+              {cleanLocation(o.location) && <span>{cleanLocation(o.location)}</span>}
               {fit.label && (
                 <Badge variant={fit.kind === "elsewhere" ? "outline" : "secondary"} className="text-[10px]">{fit.label}</Badge>
               )}
@@ -540,7 +540,7 @@ function SearchResultCard({ opp: o, score, place }: { opp: MatchRow["opportunity
             <BarrierRow opportunity={o} />
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <span>{o.deadline ? `${deadlineLabel(o.deadline)}${daysToDeadline !== null && daysToDeadline >= 0 ? ` (${daysToDeadline}d)` : ""}` : deadlineLabel(null)}</span>
-              {o.location && <span>{o.location}</span>}
+              {cleanLocation(o.location) && <span>{cleanLocation(o.location)}</span>}
               {fit.label && <Badge variant={fit.kind === "elsewhere" ? "outline" : "secondary"} className="text-[10px]">{fit.label}</Badge>}
               {(() => {
                 const v = normalizeOpportunityValue(o.value_usd, o.description);
