@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarrierRow } from "@/components/opportunity/barrier-row";
 import { Progress } from "@/components/ui/progress";
 import { categoryLabel } from "@/lib/categories";
+import { daysUntilDeadline, formatDeadline } from "@/lib/dates";
 import { hasAcceptanceRate, noAcceptanceNote } from "@/lib/selectivity";
 import { googleSearchUrl, hostOf, searchHint } from "@/lib/links";
 import { ArrowLeft, CalendarDays, DollarSign, ExternalLink, MapPin, Send, MessageSquare, Bookmark, CheckCircle2, Sparkles, TrendingUp, AlertTriangle, CheckCircle, ListChecks } from "lucide-react";
@@ -112,7 +113,7 @@ function OpportunityDetail() {
   if (loading) return <div className="container mx-auto max-w-4xl px-4 py-10"><div className="h-96 rounded-xl bg-muted animate-pulse" /></div>;
   if (!opp) return <div className="container mx-auto max-w-4xl px-4 py-10 text-center"><p className="text-lg font-semibold">We couldn't find this opportunity.</p><p className="mt-2 text-muted-foreground">It may have closed or been removed.</p><Link to="/feed" className="mt-4 inline-block underline">Back to your feed</Link></div>;
 
-  const daysToDeadline = opp.deadline ? Math.ceil((new Date(opp.deadline).getTime() - Date.now()) / 86400000) : null;
+  const daysToDeadline = opp.deadline ? daysUntilDeadline(opp.deadline) : null;
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-6">
@@ -126,7 +127,7 @@ function OpportunityDetail() {
         </div>
         <h1 className="mt-2 text-3xl sm:text-4xl font-bold leading-tight">{opp.title}</h1>
         <div className="mt-4 flex flex-wrap gap-4 text-sm opacity-95">
-          <span className="flex items-center gap-1.5"><CalendarDays className="size-4" />{opp.deadline ? <>Due {new Date(opp.deadline).toLocaleDateString()}{daysToDeadline !== null && daysToDeadline >= 0 && ` · ${daysToDeadline} days`}</> : "Deadline not listed, check the program site"}</span>
+          <span className="flex items-center gap-1.5"><CalendarDays className="size-4" />{opp.deadline ? <>Due {formatDeadline(opp.deadline)}{daysToDeadline !== null && daysToDeadline >= 0 && ` · ${daysToDeadline} days`}</> : "Deadline not listed, check the program site"}</span>
           {opp.location && <span className="flex items-center gap-1.5"><MapPin className="size-4" />{opp.location}{opp.remote && " (remote)"}</span>}
           {(() => {
             const v = normalizeOpportunityValue(opp.value_usd, opp.description);

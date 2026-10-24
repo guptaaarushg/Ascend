@@ -17,6 +17,7 @@
 
 import { cosine, embed } from "@/lib/semantic";
 import { locationFit, parsePlace, type Place } from "@/lib/location";
+import { daysUntilDeadline } from "@/lib/dates";
 
 export type RankableOpportunity = {
   id: string;
@@ -186,10 +187,7 @@ export const FRESHNESS_HALF_LIFE_DAYS = 180;
 export const PLANNING_HORIZON_DAYS = 120;
 
 export function daysUntil(deadline: string | null | undefined, now = new Date()): number | null {
-  if (!deadline) return null;
-  const d = new Date(deadline);
-  if (Number.isNaN(d.getTime())) return null;
-  return Math.round((d.getTime() - now.getTime()) / 86_400_000);
+  return daysUntilDeadline(deadline, now);
 }
 
 

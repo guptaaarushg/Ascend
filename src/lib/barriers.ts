@@ -36,7 +36,7 @@ export function formatFormat(format?: string | null): string | null {
 export function isZeroBarrier(o: BarrierFields | null | undefined): boolean {
   if (!o) return false;
   const feeClear = o.application_fee === 0 || o.fee_waiver_available === true;
-  const travelClear = o.travel_required !== true;
+  const travelClear = o.travel_required === false || o.format === "virtual";
   return feeClear && travelClear;
 }
 

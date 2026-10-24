@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Printer, Mail, FileDown } from "lucide-react";
 import { categoryLabel } from "@/lib/categories";
+import { daysUntilDeadline, formatDeadline } from "@/lib/dates";
 
 export const Route = createFileRoute("/_authenticated/export")({
   head: () => ({ meta: [{ title: "Counselor report, Ascend" }] }),
@@ -70,7 +71,7 @@ function ExportPage() {
       .filter((r) => r.opportunity?.deadline)
       .map((r) => ({
         ...r,
-        days: Math.ceil((new Date(r.opportunity!.deadline!).getTime() - now) / 86400000),
+        days: daysUntilDeadline(r.opportunity!.deadline!) ?? 0,
       }))
       .filter((r) => r.days >= 0)
       .sort((a, b) => a.days - b.days)
@@ -84,7 +85,7 @@ function ExportPage() {
         .slice(0, 10)
         .map(
           (r, i) =>
-            `${i + 1}. ${r.opportunity!.title}, ${r.opportunity!.organization}\n   Match: ${r.score}/100\n   ${r.opportunity!.deadline ? `Deadline: ${new Date(r.opportunity!.deadline).toLocaleDateString()}\n   ` : ""}${r.opportunity!.url ?? ""}`,
+            `${i + 1}. ${r.opportunity!.title}, ${r.opportunity!.organization}\n   Match: ${r.score}/100\n   ${r.opportunity!.deadline ? `Deadline: ${formatDeadline(r.opportunity!.deadline)}\n   ` : ""}${r.opportunity!.url ?? ""}`,
         )
         .join("\n\n") +
       `\n\nThank you,\n${name}`,
@@ -165,7 +166,7 @@ function ExportPage() {
                 <tbody>
                   {upcoming.map((r) => (
                     <tr key={r.opportunity!.id} className="border-t border-border/60">
-                      <td className="py-1.5 pr-3 tabular-nums">{new Date(r.opportunity!.deadline!).toLocaleDateString()}</td>
+                      <td className="py-1.5 pr-3 tabular-nums">{formatDeadline(r.opportunity!.deadline!)}</td>
                       <td className={`py-1.5 pr-3 tabular-nums font-semibold ${r.days <= 14 ? "text-primary" : "text-foreground/70"}`}>{r.days}d</td>
                       <td className="py-1.5 pr-3">{r.opportunity!.title}<span className="text-muted-foreground"> · {r.opportunity!.organization}</span></td>
                       <td className="py-1.5 tabular-nums">{r.score}/100</td>
@@ -195,7 +196,7 @@ function ExportPage() {
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {categoryLabel(r.opportunity!.category)}
-                      {r.opportunity!.deadline && <> · Due {new Date(r.opportunity!.deadline).toLocaleDateString()}</>}
+                      {r.opportunity!.deadline && <> · Due {formatDeadline(r.opportunity!.deadline)}</>}
                       {r.opportunity!.value_usd ? <> · ${r.opportunity!.value_usd.toLocaleString()}</> : null}
                       {r.opportunity!.location && <> · {r.opportunity!.location}</>}
                     </div>

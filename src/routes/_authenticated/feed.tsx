@@ -11,6 +11,7 @@ import { OPPORTUNITY_CATEGORIES, categoryLabel, normalizeCategory, deadlineLabel
 import { normalizeOpportunityValue, formatOpportunityValue } from "@/lib/opportunity-value";
 import { isZeroBarrier } from "@/lib/barriers";
 import { hasPlace, isOnline, locationFit, parsePlace, type Place } from "@/lib/location";
+import { daysUntilDeadline } from "@/lib/dates";
 import { BarrierRow } from "@/components/opportunity/barrier-row";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
@@ -201,8 +202,8 @@ function Feed() {
   const topScore = currentMatches.reduce((m, r) => Math.max(m, r.score ?? 0), 0);
   const urgentCount = currentMatches.filter((m) => {
     if (!m.opportunity?.deadline) return false;
-    const d = Math.ceil((new Date(m.opportunity.deadline).getTime() - Date.now()) / 86400000);
-    return d >= 0 && d <= 14;
+    const d = daysUntilDeadline(m.opportunity.deadline);
+    return d !== null && d >= 0 && d <= 14;
   }).length;
   const weekday = new Date().toLocaleDateString(undefined, { weekday: "long" });
 
@@ -457,7 +458,7 @@ function OpportunityCard({ match, place }: { match: MatchRow; place: Place | nul
   if (!o) return null;
   const fit = locationFit(place, o);
   const isFuture = !!match.is_future;
-  const daysToDeadline = o.deadline ? Math.ceil((new Date(o.deadline).getTime() - Date.now()) / 86400000) : null;
+  const daysToDeadline = o.deadline ? daysUntilDeadline(o.deadline) : null;
   const urgent = !isFuture && daysToDeadline !== null && daysToDeadline >= 0 && daysToDeadline <= 30;
   return (
     <Card className={`overflow-hidden transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_12px_40px_rgba(224,90,71,0.10)] ${isFuture ? "border-dashed border-primary/30 bg-primary/[0.02]" : ""}`}>
@@ -522,7 +523,7 @@ function OpportunityCard({ match, place }: { match: MatchRow; place: Place | nul
 
 function SearchResultCard({ opp: o, score, place }: { opp: MatchRow["opportunity"]; score: number | null; place: Place | null }) {
   const fit = locationFit(place, o);
-  const daysToDeadline = o.deadline ? Math.ceil((new Date(o.deadline).getTime() - Date.now()) / 86400000) : null;
+  const daysToDeadline = o.deadline ? daysUntilDeadline(o.deadline) : null;
   return (
     <Card className="overflow-hidden transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-primary/30">
       <CardContent className="p-5">

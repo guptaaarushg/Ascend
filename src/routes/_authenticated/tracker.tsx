@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { categoryLabel } from "@/lib/categories";
+import { daysUntilDeadline, formatDeadline } from "@/lib/dates";
 
 import { toast } from "sonner";
 
@@ -137,7 +138,7 @@ function TrackerRow({ row, onStatus, onRemove }: { row: Row; onStatus: (id: stri
   const o = row.opportunity;
   if (!o) return null;
   const meta = STATUS_META[row.status];
-  const days = o.deadline ? Math.ceil((new Date(o.deadline).getTime() - Date.now()) / 86400000) : null;
+  const days = o.deadline ? daysUntilDeadline(o.deadline) : null;
   return (
     <Card className="overflow-hidden hover:-translate-y-0.5 transition-transform hover:shadow-[0_12px_40px_rgba(224,90,71,0.08)]">
       <CardContent className="p-4 sm:p-5">
@@ -155,7 +156,7 @@ function TrackerRow({ row, onStatus, onRemove }: { row: Row; onStatus: (id: stri
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 {o.deadline
-                  ? `${new Date(o.deadline).toLocaleDateString()}${days !== null && days >= 0 ? ` (${days}d)` : ""}`
+                  ? `${formatDeadline(o.deadline)}${days !== null && days >= 0 ? ` (${days}d)` : ""}`
                   : "Deadline not listed, check the program site"}
               </span>
 

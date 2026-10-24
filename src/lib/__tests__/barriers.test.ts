@@ -22,6 +22,16 @@ describe("isZeroBarrier", () => {
     expect(isZeroBarrier({ application_fee: null, travel_required: false })).toBe(false);
     expect(isZeroBarrier(null)).toBe(false);
   });
+
+  it("does not count programs whose travel is unknown", () => {
+    expect(isZeroBarrier({ application_fee: 0, travel_required: null })).toBe(false);
+    expect(isZeroBarrier({ application_fee: 0 })).toBe(false);
+    expect(isZeroBarrier({ application_fee: 0, travel_required: null, format: "hybrid" })).toBe(false);
+  });
+
+  it("counts fully virtual programs even when travel is not stated", () => {
+    expect(isZeroBarrier({ application_fee: 0, travel_required: null, format: "virtual" })).toBe(true);
+  });
 });
 
 describe("barrierFacts", () => {

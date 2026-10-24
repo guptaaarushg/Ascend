@@ -1,3 +1,4 @@
+import { formatDeadline } from "@/lib/dates";
 /**
  * Canonical category taxonomy. The database is normalized to exactly these
  * ids, so a category filter never silently hides half the catalog.
@@ -51,7 +52,7 @@ export const ROLLING_DEADLINE_LABEL = "Deadline not listed, check the program si
 
 export function deadlineLabel(deadline: string | null | undefined) {
   if (!deadline) return ROLLING_DEADLINE_LABEL;
-  return new Date(deadline).toLocaleDateString();
+  return formatDeadline(deadline);
 }
 // Kept for backwards compatibility; emojis have been removed from the UI.
 export function categoryEmoji(_id: string) {

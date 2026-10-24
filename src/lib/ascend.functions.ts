@@ -5,6 +5,7 @@ import { containsProfanity, FAMILY_FRIENDLY_MESSAGE } from "@/lib/profanity";
 import { sanitizeText } from "@/lib/validation";
 import { shortlistOpportunities, hybridRank, type RankProfile } from "@/lib/matching";
 import { tablesToLists } from "@/lib/chat-format";
+import { todayPacific } from "@/lib/dates";
 import { logEvent, recordEvent, startTimer } from "@/lib/observability";
 
 
@@ -192,9 +193,17 @@ async function callAIOrNull(body: Record<string, unknown>) {
   }
 }
 
+const TRUTHFULNESS_RULES = `TRUTHFULNESS RULES (non-negotiable):
+- Only state facts about the student that appear in USER PROFILE exactly as written. An age range is not an exact age. Never state or imply their exact age, grade, GPA, test scores, income, citizenship, awards, leadership roles, or experiences unless the profile lists them.
+- If eligibility depends on a fact you do not have, say what is missing and ask one short question instead of assuming.
+- Only name programs, deadlines, costs, funding amounts, URLs, and requirements that appear in the opportunity details above or that you are certain are real and current. If you are not certain, say so and tell the student to confirm on the official site. Never invent a program, dollar amount, deadline, or link.
+- "Financial aid available" is not "free". Say aid may be available and must be applied for. Only call a program free if the details say there is no cost, and keep application fees, tuition, travel, and equipment separate.
+- Never promise that a scholarship, waiver, or admission will be granted. Treat admissions and funding as conditional outcomes.
+- For essays and application text, use ONLY achievements and details found in the profile. Where the student's own story is needed (a specific project, number, role, quote, or moment), write a clearly marked placeholder such as [describe one specific project you built] and ask the student to fill it in. Never invent achievements, quotes, numbers, or events.`;
+
 function profileSummary(p: any): string {
   const parts: string[] = [];
-  if (p.age_range) parts.push(`Age: ${p.age_range}`);
+  if (p.age_range) parts.push(`Age range: ${p.age_range} (exact age not provided)`);
   if (p.education_level) parts.push(`Education: ${p.education_level}`);
   if (p.location) parts.push(`Location: ${p.location}${p.country ? ", " + p.country : ""}`);
   if (p.academic_interests?.length) parts.push(`Academic interests: ${p.academic_interests.join(", ")}`);
@@ -231,7 +240,8 @@ function detectIncomeTier(p: any): "low" | "middle" | "high" | "unknown" {
     return "low";
   if (/(high[- ]?income|upper[- ]?middle|affluent|private school|wealthy|well[- ]?off)/.test(s))
     return "high";
-  return "middle";
+  if (/(middle[- ]?(class|income)|moderate income|average income)/.test(s)) return "middle";
+  return "unknown";
 }
 
 /**
@@ -250,7 +260,7 @@ export const generateMatches = createServerFn({ method: "POST" })
     if (!profile) throw new Error("Profile not found. Complete onboarding first.");
 
     // Expired programs never match: a passed deadline is not an opportunity.
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayPacific();
 
     // Stage 1, RETRIEVAL. Pull the entire approved, live catalog (paged, because
     // it is well past a thousand rows) instead of an arbitrary first 300.
@@ -308,7 +318,7 @@ COST: each item lists fee, travel, and format. For low income tiers prefer free,
 
 FUTURE RECOMMENDATIONS: set is_future_recommendation=true (with eligible=false, ready_in such as "when you start 11th grade", and a specific future_reason) ONLY when the user is ineligible for a time-based or skill-based reason they can overcome (grade level, coursework, age, a prerequisite). Never for immutable identity requirements (race, ethnicity, gender, citizenship, disability, veteran status, religion, first-gen).
 
-SCORE 0-100 only if eligible or future. Weigh profile strength against competitiveness (do not inflate), relevance to interests, skills and goals, acceptance odds, and the income tier "${tier}". For low-income, first-gen, or underserved users boost need-based, fee-waived, fully funded, and mentorship programs. For middle-income users balance merit and need. For high-income users favor selective merit programs. Use the full range. Score 80 or above when the user is clearly eligible AND the program fits their interests, awards, college goals, or finances. Aim for 25 to 40 such matches across the whole catalog. Keep scores below 80 for thin or speculative fits, and never inflate an ineligible program.
+SCORE 0-100 only if eligible or future. Weigh profile strength against competitiveness (do not inflate), relevance to interests, skills and goals, acceptance odds, and the income tier "${tier}" (unknown means it was not stated, so do not assume one). For low-income, first-gen, or underserved users boost need-based, fee-waived, fully funded, and mentorship programs. For middle-income users balance merit and need. For high-income users favor selective merit programs. Use the full range. Score 80 or above when the user is clearly eligible AND the program fits their interests, awards, college goals, or finances. Aim for 25 to 40 such matches across the whole catalog. Keep scores below 80 for thin or speculative fits, and never inflate an ineligible program.
 
 COLLEGE GOALS: if dream, target, or safety colleges are listed, favor institutional aid, fly-in, admitted-student, feeder, and partner programs for those schools (QuestBridge, Posse, MITES, SSP, HSSP, RSI) and name the school. If "Needs a FULL RIDE" is YES, favor full-ride scholarships and down-weight merit awards under $5k. If "Applying with financial aid" is YES, cite need-based alignment (CSS Profile, FAFSA, need-blind schools, fee waivers). Weight the intended major, and treat major-restricted programs in unrelated fields as low fit.
 
@@ -513,6 +523,8 @@ export const assistantChat = createServerFn({ method: "POST" })
 
     const sys = `You are the Ascend Assistant. Be concise, structured, and actionable. Use markdown headings, bold, and bullet lists. Never use markdown tables or pipe characters; present comparisons as bullet lists. Calculate timelines from today and the deadline. Ground essay drafts in the user's profile. Be honest about eligibility gaps and how to close them.
 
+${TRUTHFULNESS_RULES}
+
 OPPORTUNITY:
 Title: ${opp.title}
 Organization: ${opp.organization}
@@ -526,7 +538,7 @@ URL: ${opp.url ?? "n/a"}
 USER PROFILE:
 ${profile ? profileSummary(profile) : "(not yet completed)"}
 
-Today is ${new Date().toISOString().slice(0, 10)}.`;
+Today is ${todayPacific()}.`;
 
     const ai = await callAI({
       model: MODEL,
@@ -577,12 +589,14 @@ PERSONALIZATION RULES (non-negotiable):
 - If the profile is thin in the relevant area, ask ONE targeted question to fill the gap, then recommend.
 - Never give a generic listicle. Every bullet should reference a profile-specific reason.
 
-Ground every answer in the user's profile when relevant. The user's apparent income tier is "${tier}", tailor financial-aid advice accordingly without being condescending.
+${TRUTHFULNESS_RULES}
+
+Ground every answer in the user's profile when relevant. Income tier: "${tier}". If it is "unknown", the student has not said, so never state or assume their income; ask, or give advice that works for any budget. Otherwise tailor financial-aid advice without being condescending.
 
 USER PROFILE:
 ${profile ? profileSummary(profile) : "(profile incomplete, gently encourage finishing onboarding when relevant)"}
 
-Today is ${new Date().toISOString().slice(0, 10)}.`;
+Today is ${todayPacific()}.`;
 
     const ai = await callAI({
       model: MODEL,
@@ -1038,7 +1052,7 @@ export const lifePathSimulate = createServerFn({ method: "POST" })
       .map((t) => `${t.status.toUpperCase()}: ${t.opportunities.title} (${t.opportunities.organization})`)
       .join("\n");
     const oppCatalog = lines.join("\n");
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayPacific();
 
     const pathCount = data.years <= 5 ? "3" : "2";
     const sys = `You are Ascend's Life Path Simulator, a sharp, warm college and career mentor for a high school student. Today is ${today}.

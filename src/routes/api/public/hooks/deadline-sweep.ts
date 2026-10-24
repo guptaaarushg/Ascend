@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { todayPacific } from "@/lib/dates";
 
 /**
  * Catalog hygiene sweep.
@@ -31,7 +32,7 @@ export const Route = createFileRoute("/api/public/hooks/deadline-sweep")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { recordEvent, startTimer } = await import("@/lib/observability");
         const done = startTimer();
-        const today = new Date().toISOString().slice(0, 10);
+        const today = todayPacific();
 
         const { data: expired, error: findErr } = await supabaseAdmin
           .from("opportunities")
