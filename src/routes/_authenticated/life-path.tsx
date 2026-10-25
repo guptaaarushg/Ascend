@@ -57,6 +57,7 @@ function LifePath() {
   const [field, setField] = useState("");
   const [edu, setEdu] = useState("high_school");
   const [years, setYears] = useState(4);
+  const [yearsText, setYearsText] = useState("4");
   const [loading, setLoading] = useState(false);
   const [paths, setPaths] = useState<Path[]>([]);
   const [explanation, setExplanation] = useState("");
@@ -80,7 +81,9 @@ function LifePath() {
             setGoal(String(saved.goal ?? ""));
             setField(String(saved.field ?? ""));
             setEdu(String(saved.edu ?? "high_school"));
-            setYears(Number(saved.years) || 4);
+            const savedYears = Math.max(1, Math.min(10, Number(saved.years) || 4));
+            setYears(savedYears);
+            setYearsText(String(savedYears));
             setPaths(saved.paths);
             setExplanation(String(saved.explanation ?? ""));
             setInsights(saved.insights ?? null);
@@ -109,14 +112,22 @@ function LifePath() {
   }, []);
 
 
+  const commitYears = () => {
+    const n = Math.max(1, Math.min(10, parseInt(yearsText, 10) || 4));
+    setYears(n);
+    setYearsText(String(n));
+    return n;
+  };
+
   const simulate = async () => {
     if (!goal.trim() || !field.trim()) {
       toast.error("Add a career goal and field first.");
       return;
     }
+    const horizon = commitYears();
     setLoading(true);
     try {
-      const res = await run({ data: { career_goal: goal, field, education_level: edu, years } });
+      const res = await run({ data: { career_goal: goal, field, education_level: edu, years: horizon } });
       const nextPaths = Array.isArray(res.paths) ? (res.paths as Path[]) : [];
       if (nextPaths.length === 0) {
         toast.error("The simulator did not return a roadmap. Please try again.");
@@ -131,7 +142,7 @@ function LifePath() {
       if (storageKey) {
         try {
           localStorage.setItem(storageKey, JSON.stringify({
-            goal, field, edu, years, paths: nextPaths, explanation: res.explanation, insights: nextInsights, oppTitles: nextTitles,
+            goal, field, edu, years: horizon, paths: nextPaths, explanation: res.explanation, insights: nextInsights, oppTitles: nextTitles,
           }));
         } catch {}
       }
@@ -181,7 +192,18 @@ function LifePath() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="life-years">Time horizon (years)</Label>
-            <Input id="life-years" type="number" min={1} max={10} value={years} onChange={(e) => setYears(Math.max(1, Math.min(10, Number(e.target.value) || 1)))} />
+            <Input
+              id="life-years"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={2}
+              value={yearsText}
+              onChange={(e) => setYearsText(e.target.value.replace(/\D/g, "").slice(0, 2))}
+              onBlur={() => commitYears()}
+              aria-describedby="life-years-hint"
+            />
+            <p id="life-years-hint" className="text-xs text-muted-foreground">Type a number from 1 to 10</p>
           </div>
           <Button onClick={simulate} disabled={loading} className="h-10">
             

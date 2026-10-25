@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { generateMatches } from "@/lib/ascend.functions";
+import { browseCategory, generateMatches } from "@/lib/ascend.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,6 +55,10 @@ function Feed() {
   const [nearOnly, setNearOnly] = useState(false);
   const [searchRows, setSearchRows] = useState<MatchRow["opportunity"][] | null>(null);
   const [searching, setSearching] = useState(false);
+  const [browseItems, setBrowseItems] = useState<MatchRow["opportunity"][]>([]);
+  const [browsing, setBrowsing] = useState(false);
+  const [browseLimit, setBrowseLimit] = useState(30);
+  const runBrowse = useServerFn(browseCategory);
   const [userPlace, setUserPlace] = useState<Place | null>(null);
   const [firstName, setFirstName] = useState<string>("");
   // Sticky per user: a $0-barrier requirement is a real constraint, not a mood.
@@ -101,6 +105,31 @@ function Feed() {
     [query],
   );
   const searchActive = searchWords.length > 0;
+
+  useEffect(() => {
+    if (category === "all") {
+      setBrowseItems([]);
+      setBrowsing(false);
+      return;
+    }
+    let cancelled = false;
+    setBrowsing(true);
+    setBrowseLimit(30);
+    runBrowse({ data: { category } })
+      .then((res) => {
+        if (!cancelled) setBrowseItems(res.items as unknown as MatchRow["opportunity"][]);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setBrowseItems([]);
+          toast.error("Could not load this category. Try again in a moment.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setBrowsing(false);
+      });
+    return () => { cancelled = true; };
+  }, [category]);
 
   useEffect(() => {
     if (searchWords.length === 0) {
@@ -191,6 +220,8 @@ function Feed() {
   const filteredFuture = futureMatches.filter(filterFn).sort((a, b) => b.score - a.score);
   const filteredClose = closeMatches.filter(filterFn).sort(sortFn);
   const showClose = filtered.length === 0 && filteredClose.length > 0;
+  const laneIds = new Set([...filtered, ...filteredFuture, ...(showClose ? filteredClose : [])].map((m) => m.opportunity.id));
+  const browseAll = browseItems.filter((o) => !laneIds.has(o.id) && passesFilters(o));
   // Feed bar: only 85+ matches are ever displayed in the main lane.
 
 
@@ -355,7 +386,7 @@ function Feed() {
           <p className="text-sm text-muted-foreground mt-1">{loadError}</p>
           <Button className="mt-4" onClick={() => load()}>Try again</Button>
         </div>
-      ) : filtered.length === 0 && filteredFuture.length === 0 && !showClose ? (
+      ) : filtered.length === 0 && filteredFuture.length === 0 && !showClose && category === "all" ? (
         <EmptyState onRefresh={handleRefresh} refreshing={refreshing} hasAny={matches.length > 0} />
       ) : (
 
@@ -409,6 +440,32 @@ function Feed() {
               <div className="grid gap-4">
                 {filteredFuture.map((m) => <OpportunityCard key={m.opportunity.id} match={m} place={userPlace} />)}
               </div>
+            </div>
+          )}
+          {category !== "all" && (
+            <div className="mt-6">
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-lg font-semibold tracking-tight">
+                  {filtered.length > 0 ? `More ${categoryLabel(category).toLowerCase()}` : `Browse ${categoryLabel(category).toLowerCase()}`}
+                </h2>
+                <span className="text-xs text-muted-foreground">{browsing ? "Loading…" : `${browseAll.length}`}</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Everything in this category from the full catalog, ranked for your profile. Open a program to check eligibility, cost, and the deadline before you plan around it.
+              </p>
+              {!browsing && browseAll.length === 0 && (
+                <p className="text-sm text-muted-foreground">Nothing in this category fits your current filters. Try turning a filter off.</p>
+              )}
+              <div className="grid gap-4">
+                {browseAll.slice(0, browseLimit).map((o) => (
+                  <SearchResultCard key={o.id} opp={o} score={matchById.get(o.id)?.score ?? null} place={userPlace} />
+                ))}
+              </div>
+              {browseAll.length > browseLimit && (
+                <div className="mt-4 text-center">
+                  <Button variant="outline" onClick={() => setBrowseLimit((n) => n + 30)}>Show more</Button>
+                </div>
+              )}
             </div>
           )}
         </div>

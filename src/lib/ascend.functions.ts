@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { containsProfanity, FAMILY_FRIENDLY_MESSAGE } from "@/lib/profanity";
 import { sanitizeText } from "@/lib/validation";
 import { shortlistOpportunities, hybridRank, type RankProfile } from "@/lib/matching";
+import { dbCategoriesFor, normalizeCategory } from "@/lib/categories";
 import { tablesToLists } from "@/lib/chat-format";
 import { buildSchoolYearPlan, todayPacific } from "@/lib/dates";
 import { logEvent, recordEvent, startTimer } from "@/lib/observability";
@@ -1376,4 +1377,58 @@ export const generateDigestEmail = createServerFn({ method: "POST" })
       return { empty: true as const, subject: "", text: "", html: "" };
     }
     return { empty: false as const, subject: digest.subject, text: digest.text, html: digest.html };
+  });
+
+
+export const browseCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ category: z.string().min(1).max(40) }).parse(input))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const today = todayPacific();
+    const categoryId = normalizeCategory(data.category);
+    const dbCategories = dbCategoriesFor(categoryId);
+
+    const { data: profile, error: pErr } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+    if (pErr) throw new Error(pErr.message);
+
+    const rows: any[] = [];
+    const pageSize = 1000;
+    for (let page = 0; page < 4; page++) {
+      const { data: chunk, error } = await supabase
+        .from("opportunities")
+        .select("id,title,organization,category,description,eligibility,tags,related_skills,competitiveness,underrepresented,value_usd,application_fee,fee_waiver_available,travel_required,equipment_needed,format,deadline,location,remote")
+        .eq("status", "approved")
+        .in("category", dbCategories)
+        .or(`deadline.is.null,deadline.gte.${today}`)
+        .order("id", { ascending: true })
+        .range(page * pageSize, page * pageSize + pageSize - 1);
+      if (error) throw new Error(error.message);
+      if (!chunk?.length) break;
+      rows.push(...chunk);
+      if (chunk.length < pageSize) break;
+    }
+
+    const ranked = profile ? hybridRank(rows, profile as unknown as RankProfile, new Date()).map((r) => r.opportunity) : [];
+    const rankedIds = new Set(ranked.map((o: any) => o.id));
+    const rest = rows.filter((o) => !rankedIds.has(o.id));
+    const items = [...ranked, ...rest].slice(0, 150).map((o: any) => ({
+      id: o.id,
+      title: o.title,
+      organization: o.organization,
+      category: o.category,
+      description: o.description,
+      deadline: o.deadline,
+      location: o.location,
+      value_usd: o.value_usd,
+      underrepresented: o.underrepresented,
+      competitiveness: o.competitiveness,
+      application_fee: o.application_fee,
+      fee_waiver_available: o.fee_waiver_available,
+      travel_required: o.travel_required,
+      equipment_needed: o.equipment_needed,
+      format: o.format,
+      remote: o.remote,
+    }));
+    return { items, total: rows.length };
   });

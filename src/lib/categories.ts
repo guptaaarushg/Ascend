@@ -24,7 +24,7 @@ const CATEGORY_ALIASES: Record<string, string> = {
   program: "summer_program",
   leadership: "summer_program",
   community: "volunteer",
-  community_resource: "volunteer",
+  community_resource: "benefit",
   funding: "grant",
   government_benefit: "benefit",
   tax_credit: "benefit",
@@ -35,6 +35,14 @@ const CATEGORY_ALIASES: Record<string, string> = {
 export function normalizeCategory(id: string | null | undefined) {
   const key = (id ?? "").trim().toLowerCase();
   return CATEGORY_ALIASES[key] ?? key;
+}
+
+export function dbCategoriesFor(id: string): string[] {
+  const out = new Set<string>([id]);
+  for (const [alias, target] of Object.entries(CATEGORY_ALIASES)) {
+    if (target === id) out.add(alias);
+  }
+  return [...out];
 }
 
 export type CategoryId = (typeof OPPORTUNITY_CATEGORIES)[number]["id"];
