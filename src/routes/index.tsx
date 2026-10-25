@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import studentHero from "@/assets/ascend-student-hero.jpg";
+import studentHero from "@/assets/ascend-study-group.png";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -61,7 +61,7 @@ function Landing() {
 
       {/* HERO */}
       <header className="relative flex min-h-[88vh] items-end overflow-hidden bg-foreground text-primary-foreground">
-        <img src={studentHero} alt="A high school student planning her next opportunity at a library" width={1600} height={1008} className="absolute inset-0 size-full object-cover object-[62%_center]" />
+        <img src={studentHero} alt="Three students studying together at a table" width={740} height={451} className="absolute inset-0 size-full object-cover object-[62%_center]" />
         <div aria-hidden className="absolute inset-0 bg-[linear-gradient(90deg,color-mix(in_oklch,var(--foreground)_93%,transparent)_0%,color-mix(in_oklch,var(--foreground)_75%,transparent)_48%,color-mix(in_oklch,var(--foreground)_12%,transparent)_100%)]" />
         <div className="relative mx-auto w-full max-w-screen-2xl px-5 pb-12 pt-32 sm:px-10 sm:pb-16 lg:px-16 lg:pb-20">
           <div className="max-w-3xl animate-fade-in">
@@ -234,37 +234,55 @@ function ImpactStrip() {
 
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const [summary, count] = await Promise.all([
-        supabase.rpc("impact_summary"),
-        supabase.rpc("catalog_count"),
-      ]);
-      if (cancelled) return;
-      const row = Array.isArray(summary.data) ? summary.data[0] : null;
-      if (row && !summary.error) setImpact(row as Impact);
-      if (typeof count.data === "number" && !count.error) setCatalog(count.data);
-    })();
-    return () => { cancelled = true; };
+    let fetching = false;
+    const refresh = async () => {
+      if (cancelled || fetching || document.visibilityState === "hidden") return;
+      fetching = true;
+      try {
+        const [summary, count] = await Promise.all([
+          supabase.rpc("impact_summary"),
+          supabase.rpc("catalog_count"),
+        ]);
+        if (cancelled) return;
+        const row = Array.isArray(summary.data) ? summary.data[0] : null;
+        if (row && !summary.error) setImpact(row as Impact);
+        if (typeof count.data === "number" && !count.error) setCatalog(count.data);
+      } catch {
+        // Keep the last successful totals if a refresh fails.
+      } finally {
+        fetching = false;
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 30_000);
+    const onFocus = () => { void refresh(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
   }, []);
 
-  // Pilot totals: counts from the pilot cohorts we ran with counselors, plus
-  // whatever the live database is reporting right now.
+  // Inclusive beta totals supplied by the owner. The SQL migration counts only
+  // first-time activity after activation; existing records are already included.
+  const BETA_BASELINE = { students: 1_134, matches: 60_206, applied: 2_998, accepted: 982 };
   const live: Impact = impact ?? {
-    students_served: 0,
-    total_matches: 0,
-    total_applied: 0,
-    total_accepted: 0,
+    students_served: BETA_BASELINE.students,
+    total_matches: BETA_BASELINE.matches,
+    total_applied: BETA_BASELINE.applied,
+    total_accepted: BETA_BASELINE.accepted,
     zero_barrier_users: 0,
   };
 
-  const PILOT = { students: 407, matches: 10_902, applied: 2_998, accepted: 483 };
-
   const tiles = [
     { value: catalog ?? 0, label: "Verified opportunities in the catalog" },
-    { value: Math.max(PILOT.students, live.students_served), label: "Students building a profile" },
-    { value: Math.max(PILOT.matches, live.total_matches), label: "Opportunities matched" },
-    { value: Math.max(PILOT.applied, live.total_applied), label: "Applications started" },
-    { value: Math.max(PILOT.accepted, live.total_accepted), label: "Acceptances tracked" },
+    { value: Math.max(BETA_BASELINE.students, live.students_served), label: "Students building a profile" },
+    { value: Math.max(BETA_BASELINE.matches, live.total_matches), label: "Opportunities matched" },
+    { value: Math.max(BETA_BASELINE.applied, live.total_applied), label: "Applications started" },
+    { value: Math.max(BETA_BASELINE.accepted, live.total_accepted), label: "Acceptances tracked" },
   ];
 
 
@@ -273,10 +291,10 @@ function ImpactStrip() {
       <div className="max-w-screen-2xl mx-auto px-6 sm:px-10 lg:px-16 py-12 sm:py-16 lg:py-20">
         <p className="text-sm uppercase tracking-[0.2em] text-peach-deep mb-4 font-semibold">Where Ascend Stands Today</p>
         <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif font-semibold leading-[1.05] mb-4">
-          Real numbers from a real pilot
+          From the beta to today
         </h2>
         <p className="text-base sm:text-lg md:text-xl text-foreground/75 leading-relaxed max-w-3xl mb-8 sm:mb-10">
-          Ascend is early. These are totals across our pilot cohorts and the live database. No student is ever named, counted twice, or shown to anyone else.
+          These totals include our corrected beta figures and new activity recorded since the update. Only aggregate counts are shown.
         </p>
 
 
