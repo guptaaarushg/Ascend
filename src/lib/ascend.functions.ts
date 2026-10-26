@@ -62,13 +62,23 @@ function getAIProviders(): AIProvider[] {
     });
   }
   if (process.env.OPENROUTER_API_KEY) {
-    providers.push({
+    const configured = process.env.OPENROUTER_MODEL?.trim();
+    // The old free GPT-OSS endpoint was retired. Do not silently use its paid slug.
+    const model = !configured || configured === "openai/gpt-oss-120b:free"
+      ? "openrouter/free"
+      : configured;
+    const openrouter = {
       name: "openrouter",
       url: "https://openrouter.ai/api/v1/chat/completions",
       key: process.env.OPENROUTER_API_KEY,
-      model: process.env.OPENROUTER_MODEL || "openai/gpt-oss-120b:free",
-      jsonMode: false,
-    });
+      model,
+      jsonMode: model === "openrouter/free",
+    };
+    providers.push(openrouter);
+    // A specifically selected free model can disappear; retain a free fallback.
+    if (model !== "openrouter/free" && model.endsWith(":free")) {
+      providers.push({ ...openrouter, model: "openrouter/free", jsonMode: true });
+    }
   }
   return providers;
 }
@@ -267,7 +277,7 @@ export const generateMatches = createServerFn({ method: "POST" })
     // it is well past a thousand rows) instead of an arbitrary first 300.
     const catalog: any[] = [];
     const pageSize = 1000;
-    for (let page = 0; page < 8; page++) {
+    const fetchCatalogPage = async (page: number) => {
       const { data, error } = await supabase
         .from("opportunities").select("id,title,organization,category,description,eligibility,tags,related_skills,competitiveness,underrepresented,value_usd,application_fee,fee_waiver_available,travel_required,equipment_needed,format,deadline,location,remote")
         .eq("status", "approved")
@@ -275,9 +285,25 @@ export const generateMatches = createServerFn({ method: "POST" })
         .order("id", { ascending: true })
         .range(page * pageSize, page * pageSize + pageSize - 1);
       if (error) throw new Error(error.message);
-      if (!data?.length) break;
-      catalog.push(...data);
-      if (data.length < pageSize) break;
+      return data ?? [];
+    };
+    // Fetch nearby pages together, retaining the same catalog order and limit.
+    // A speculative page beyond the end must not cause an unnecessary failure.
+    let catalogComplete = false;
+    for (let start = 0; start < 8 && !catalogComplete;) {
+      const count = start === 0 ? 1 : Math.min(3, 8 - start);
+      const pages = await Promise.allSettled(
+        Array.from({ length: count }, (_, offset) => fetchCatalogPage(start + offset)),
+      );
+      for (const page of pages) {
+        if (page.status === "rejected") throw page.reason;
+        catalog.push(...page.value);
+        if (page.value.length < pageSize) {
+          catalogComplete = true;
+          break;
+        }
+      }
+      start += count;
     }
     if (!catalog.length) return { matched: 0 };
 
@@ -296,8 +322,8 @@ export const generateMatches = createServerFn({ method: "POST" })
     const chunkSize = 24;
     const results: { opportunity_id: string; eligible?: boolean; score: number; reasoning: string }[] = [];
 
-    // Stage 3, RERANK. The LLM reads the shortlist in batches of 20, three at a
-    // time so we stay well inside provider rate limits while cutting wall time.
+    // Stage 3, RERANK. Assess the same shortlist in batches of 24.
+    // Independent batches run together; provider retries and fallback stay intact.
     const chunks: any[][] = [];
     for (let i = 0; i < opps.length; i += chunkSize) chunks.push(opps.slice(i, i + chunkSize));
 
@@ -390,7 +416,7 @@ REASONING: write it only when eligible or future AND the score is 70 or higher; 
       }
     };
 
-    const concurrency = 2;
+    const concurrency = 4;
     for (let i = 0; i < chunks.length; i += concurrency) {
       await Promise.all(chunks.slice(i, i + concurrency).map((c, j) => scoreChunk(c, i + j)));
     }
