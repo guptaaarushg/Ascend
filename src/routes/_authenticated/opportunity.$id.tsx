@@ -408,7 +408,7 @@ function AcceptanceProbability({ opportunityId }: { opportunityId: string }) {
             <span className="font-semibold text-success">{data.potential_probability}%</span> by completing the actions below.
           </p>
           <p className="text-xs text-muted-foreground">
-            These percentages are AI estimates based on your profile and the program description, not official admissions statistics. The checklist above shows what is confirmed and what is still unknown.
+            These percentages are estimates based on your profile and the program description, not official admissions statistics. The checklist above shows what is confirmed and what is still unknown.
           </p>
         </CardContent>
       </Card>
@@ -578,7 +578,7 @@ function TranslateCard({ opportunityId }: { opportunityId: string }) {
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Who qualifies</div>
               <p>{result.eligibility}</p>
             </div>
-            <p className="text-xs text-muted-foreground italic">AI-translated. Double-check key details against the official page.</p>
+            <p className="text-xs text-muted-foreground italic">Double-check key details against the official page.</p>
           </div>
         )}
       </CardContent>
