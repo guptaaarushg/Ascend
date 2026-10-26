@@ -59,7 +59,7 @@ function ExportPage() {
       setName(p?.display_name ?? u.user.email ?? "Student");
       setRows((m ?? []) as unknown as Row[]);
       } catch {
-        /* show the empty report instead of an endless loading state */
+                                                                       
       } finally {
         setLoading(false);
       }
@@ -94,7 +94,7 @@ function ExportPage() {
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8 print:py-0 print:max-w-none print:px-0">
-      {/* Print-only tuning */}
+      {                       }
       <style>{`
         @media print {
           @page { margin: 0.6in; }
@@ -123,7 +123,7 @@ function ExportPage() {
         <p className="text-muted-foreground">Preparing report…</p>
       ) : (
         <article className="print:text-[11pt]">
-          {/* Report header */}
+          {                   }
           <header className="border-b-2 border-primary pb-4 mb-6 avoid-break">
             <div className="text-[11px] uppercase tracking-[0.2em] text-primary font-semibold">Ascend · Counselor Report</div>
             <h1 className="text-3xl font-bold mt-1">{name}</h1>
@@ -134,7 +134,7 @@ function ExportPage() {
             </div>
           </header>
 
-          {/* Profile summary */}
+          {                     }
           <section className="mb-6 avoid-break">
             <h2 className="text-lg font-bold border-b border-border pb-1 mb-3">01 · Student profile</h2>
             {profile?.long_term_goals && (
@@ -151,7 +151,7 @@ function ExportPage() {
             </div>
           </section>
 
-          {/* Deadline timeline */}
+          {                       }
           {upcoming.length > 0 && (
             <section className="mb-6 avoid-break">
               <h2 className="text-lg font-bold border-b border-border pb-1 mb-3">02 · Upcoming deadlines</h2>
@@ -178,7 +178,7 @@ function ExportPage() {
             </section>
           )}
 
-          {/* Match briefing */}
+          {                    }
           <section>
             <h2 className="text-lg font-bold border-b border-border pb-1 mb-3">03 · Top opportunity matches</h2>
             {rows.length === 0 ? (

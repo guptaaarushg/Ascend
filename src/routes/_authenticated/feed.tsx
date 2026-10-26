@@ -61,7 +61,7 @@ function Feed() {
   const runBrowse = useServerFn(browseCategory);
   const [userPlace, setUserPlace] = useState<Place | null>(null);
   const [firstName, setFirstName] = useState<string>("");
-  // Sticky per user: a $0-barrier requirement is a real constraint, not a mood.
+                                                                                
   const [zeroBarrier, setZeroBarrier] = useState(false);
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
@@ -163,7 +163,7 @@ function Feed() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [searchWords]);
 
-  // Persist the $0-barrier preference so it survives sessions and devices.
+                                                                           
   const toggleZeroBarrier = async (next: boolean) => {
     setZeroBarrier(next);
     const { data: u } = await supabase.auth.getUser();
@@ -192,8 +192,8 @@ function Feed() {
 
   const currentMatches = matches.filter((m) => !m.is_future && m.score >= 80);
   const futureMatches = matches.filter((m) => !!m.is_future && m.score >= 80);
-  // Fallback lane: 70 to 84. Never shown alongside strong matches, only when
-  // the strong lane is empty, so the feed is never a dead end on first run.
+                                                                             
+                                                                            
   const closeMatches = matches.filter((m) => !m.is_future && m.score >= 70 && m.score < 80);
   const sortFn = (a: MatchRow, b: MatchRow) => {
     if (sort === "score") return (b.score + locationFit(userPlace, b.opportunity).score * 0.4) - (a.score + locationFit(userPlace, a.opportunity).score * 0.4);
@@ -222,7 +222,7 @@ function Feed() {
   const showClose = filtered.length === 0 && filteredClose.length > 0;
   const laneIds = new Set([...filtered, ...filteredFuture, ...(showClose ? filteredClose : [])].map((m) => m.opportunity.id));
   const browseAll = browseItems.filter((o) => !laneIds.has(o.id) && passesFilters(o));
-  // Feed bar: only 85+ matches are ever displayed in the main lane.
+                                                                    
 
 
 
@@ -240,7 +240,7 @@ function Feed() {
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8">
-      {/* Personal Student Dashboard widget */}
+      {                                       }
       <div className="mb-6 rounded-2xl border border-primary/15 bg-card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="min-w-0">

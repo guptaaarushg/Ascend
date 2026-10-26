@@ -1,19 +1,19 @@
-/**
- * Retrieval and pre-ranking layer for opportunity matching.
- *
- * The catalog grew past 1,700 approved programs, which is far more than any
- * single LLM pass can read. Sending "the first 300 rows the database happened
- * to return" meant most students never saw the programs that actually fit them.
- *
- * So matching now runs in two stages, the same shape a production recommender
- * uses:
- *   1. RETRIEVAL (this file, pure TypeScript, no tokens): score every approved,
- *      non-expired program against the profile with a lexical + feature model,
- *      drop clearly impossible ones, then diversify so one category cannot eat
- *      the whole shortlist.
- *   2. RERANK (the LLM in ascend.functions.ts): read the shortlist carefully and
- *      decide hard eligibility, final score, and the "why you" reasoning.
- */
+   
+                                                            
+  
+                                                                            
+                                                                              
+                                                                                
+  
+                                                                              
+        
+                                                                                
+                                                                               
+                                                                               
+                            
+                                                                                 
+                                                                          
+   
 
 import { cosine, embed } from "@/lib/semantic";
 import { locationFit, parsePlace, type Place } from "@/lib/location";
@@ -90,7 +90,7 @@ export function tokenize(text: string): string[] {
     .filter((t) => t.length > 2 && !STOPWORDS.has(t));
 }
 
-/** Weighted bag of terms drawn from the profile. Repetition IS the weight. */
+                                                                              
 export function profileTerms(p: RankProfile): Map<string, number> {
   const bag = new Map<string, number>();
   const add = (value: unknown, weight: number) => {
@@ -111,7 +111,7 @@ export function profileTerms(p: RankProfile): Map<string, number> {
   return bag;
 }
 
-/** Inverse document frequency, so "science" counts far less than "usaco". */
+                                                                             
 export function buildIdf(opps: RankableOpportunity[]): Map<string, number> {
   const df = new Map<string, number>();
   for (const o of opps) {
@@ -146,40 +146,40 @@ const GRADE_ORDER: Record<string, number> = {
   career_change: 3,
 };
 
-/**
- * Cheap, conservative hard filter. Only drops rows we are confident about, the
- * LLM still owns real eligibility. Being wrong here is expensive, so every rule
- * needs an explicit signal in the text.
- */
+   
+                                                                               
+                                                                                
+                                        
+   
 export function obviouslyIneligible(o: RankableOpportunity, p: RankProfile): boolean {
   const text = `${o.eligibility ?? ""} ${o.title ?? ""}`.toLowerCase();
   const level = GRADE_ORDER[String(p.education_level ?? "")] ?? 0;
   if (!level) return false;
 
-  // Level gates.
+                 
   if (level <= 2 && /\b(graduate students?|phd|doctoral|postdoc|master'?s students?)\s+only\b/.test(text)) return true;
   if (level <= 2 && /\b(undergraduates?|college students?)\s+only\b/.test(text)) return true;
   if (level >= 3 && /\b(high school|middle school)\s+students?\s+only\b/.test(text)) return true;
   if (level === 1 && /\b(high school (juniors|seniors)|grades? 1[0-2])\b/.test(text) && !/middle school|grades? [6-8]/.test(text)) return true;
 
-  // Citizenship gate, only when the student told us they need programs without one.
+                                                                                    
   if (p.immigration_status_note && /\b(us citizens? only|must be a us citizen|citizenship required|permanent residents? only)\b/.test(text)) return true;
 
   return false;
 }
 
-/**
- * Deadline decay constants, stated explicitly so the ranking function is
- * auditable rather than a pile of magic numbers.
- *
- *   imminence(d) = IMMINENCE_WEIGHT * 2^(-d / IMMINENCE_HALF_LIFE_DAYS)      [subtracted]
- *   freshness(d) = FRESHNESS_WEIGHT * 2^(-(d - HORIZON) / FRESHNESS_HALF_LIFE) [added, d > HORIZON]
- *
- * Half-life is the number of days over which the effect halves. Five days for
- * imminence because that is roughly the point where a student can still write
- * a real essay; 180 days for freshness because a deadline a year out is real
- * but not actionable this season.
- */
+   
+                                                                         
+                                                 
+  
+                                                                                          
+                                                                                                    
+  
+                                                                              
+                                                                              
+                                                                             
+                                  
+   
 export const IMMINENCE_WEIGHT = 8;
 export const IMMINENCE_HALF_LIFE_DAYS = 5;
 export const FRESHNESS_WEIGHT = 5;
@@ -191,9 +191,9 @@ export function daysUntil(deadline: string | null | undefined, now = new Date())
 }
 
 
-/**
- * Feature score for one opportunity, roughly 0 to 100 before the LLM sees it.
- */
+   
+                                                                              
+   
 export function preRankScore(
   o: RankableOpportunity,
   terms: Map<string, number>,
@@ -201,7 +201,7 @@ export function preRankScore(
   p: RankProfile,
   now = new Date(),
 ): number {
-  // 1. Lexical relevance (tf-idf style overlap, length normalized).
+                                                                    
   const tokens = tokenize(oppText(o));
   const counts = new Map<string, number>();
   for (const t of tokens) counts.set(t, (counts.get(t) ?? 0) + 1);
@@ -209,19 +209,19 @@ export function preRankScore(
   for (const [term, weight] of terms) {
     const tf = counts.get(term);
     if (!tf) continue;
-    // Saturating tf keeps keyword-stuffed listings from dominating.
+                                                                    
     lexical += weight * (idf.get(term) ?? 1) * (tf / (tf + 1.5));
   }
   const norm = 1 / Math.sqrt(Math.max(tokens.length, 30));
   let score = Math.min(55, lexical * norm * 12);
 
-  // 2. Title hits are stronger evidence than a mention deep in the description.
+                                                                                
   const titleTokens = new Set(tokenize(`${o.title ?? ""} ${(o.tags ?? []).join(" ")}`));
   let titleHits = 0;
   for (const [term, weight] of terms) if (titleTokens.has(term)) titleHits += weight;
   score += Math.min(14, titleHits * 1.6);
 
-  // 3. Equity features. Money and access matter as much as topic fit here.
+                                                                           
   const lowIncome =
     p.needs_full_ride === true ||
     p.applying_with_financial_aid === true ||
@@ -243,20 +243,20 @@ export function preRankScore(
 
   score += locationFit(placeFor(p), o).score;
 
-  // 4. Named-college alignment.
+                                
   const colleges = [...(p.dream_colleges ?? []), ...(p.target_colleges ?? [])].filter(Boolean);
   if (colleges.some((c) => oppText(o).toLowerCase().includes(String(c).toLowerCase()))) score += 8;
 
-  // 5. Deadline urgency, modelled as a smooth window instead of a step function.
-  //    Two effects, both continuous, so a program does not jump 10 points
-  //    because a day passed:
-  //      a. IMMINENCE PENALTY, exponential decay with a 5-day half-life. A
-  //         deadline 2 days out is worth applying to only if the student can
-  //         realistically finish, so penalty(d) = -8 * 2^(-d/5).
-  //      b. FRESHNESS DECAY, exponential with a 180-day half-life on anything
-  //         beyond the 120-day planning horizon: bonus(d) = 5 * 2^(-(d-120)/180).
-  //    Rolling programs (no deadline) stay exactly neutral rather than being
-  //    silently rewarded for missing data.
+                                                                                 
+                                                                          
+                             
+                                                                           
+                                                                             
+                                                                 
+                                                                              
+                                                                                  
+                                                                             
+                                           
   const days = daysUntil(o.deadline, now);
   if (days !== null) {
     score -= IMMINENCE_WEIGHT * Math.pow(2, -Math.max(days, 0) / IMMINENCE_HALF_LIFE_DAYS);
@@ -265,7 +265,7 @@ export function preRankScore(
   }
 
 
-  // 6. Selectivity sanity: extremely competitive programs need real signal.
+                                                                            
   if (/very high|extreme/i.test(o.competitiveness ?? "")) {
     const hasAwards = (p.certifications ?? []).length > 0;
     score += hasAwards ? 2 : -5;
@@ -274,7 +274,7 @@ export function preRankScore(
   return score;
 }
 
-/** All profile text the semantic layer should see, in one string. */
+                                                                     
 export function profileDocument(p: RankProfile): string {
   return [
     p.intended_major,
@@ -296,13 +296,13 @@ export function profileDocument(p: RankProfile): string {
     .join(" ");
 }
 
-/** Reciprocal rank fusion, kept as a stabilizing tiebreak in the fusion below. */
+                                                                                  
 export const RRF_K = 60;
 export function rrf(rank: number, k = RRF_K): number {
   return 1 / (k + rank + 1);
 }
 
-/** Saturating map onto 0..1 on an absolute scale. */
+                                                     
 function saturate(x: number, half: number): number {
   return x <= 0 ? 0 : x / (x + half);
 }
@@ -314,34 +314,34 @@ export type ScoredOpportunity<T> = {
   fused: number;
 };
 
-/**
- * HYBRID RETRIEVAL.
- *
- * Two independent retrievers run over the same candidate pool:
- *   - LEXICAL: tf-idf feature score (preRankScore), strong on exact program
- *     names, awards, and college names.
- *   - SEMANTIC: cosine similarity between the hashed concept sketch of the
- *     profile and of the program, strong when the student's words and the
- *     program's words never overlap.
- *
- * CONFIDENCE-WEIGHTED FUSION, and why it is not plain RRF.
- * Pure rank fusion trusts whatever each retriever puts on top, even when that
- * retriever found nothing. On the labeled set that produced the worst failure
- * in the whole engine: a violinist whose profile says "first chair" was handed
- * robotics programs, because "first" was the only token that matched anything
- * and the lexical ranker still confidently returned an ordering.
- *
- * So each signal is converted to an absolute confidence before fusing:
- *   - lexical uses a saturating transform on its own raw scale, so a weak best
- *     match contributes weakly instead of contributing "rank 1"
- *   - semantic uses a z-score against the rest of the pool, so it only speaks up
- *     when a program genuinely stands out rather than sitting in the crowd
- * RRF is kept at a small weight purely as a tiebreak between near-equal rows.
- */
+   
+                    
+  
+                                                               
+                                                                            
+                                        
+                                                                           
+                                                                          
+                                     
+  
+                                                           
+                                                                              
+                                                                              
+                                                                               
+                                                                              
+                                                                 
+  
+                                                                       
+                                                                               
+                                                                
+                                                                                 
+                                                                           
+                                                                              
+   
 export const LEXICAL_WEIGHT = 1.0;
 export const SEMANTIC_WEIGHT = 0.9;
 export const RRF_TIEBREAK_WEIGHT = 4;
-/** Raw lexical score at which the lexical signal is considered half-confident. */
+                                                                                  
 export const LEXICAL_HALF_CONFIDENCE = 15;
 
 export function hybridRank<T extends RankableOpportunity>(
@@ -367,8 +367,8 @@ export function hybridRank<T extends RankableOpportunity>(
   const lexRank = new Map(byLexical.map((r, i) => [r.opportunity.id, i]));
   const semRank = new Map(bySemantic.map((r, i) => [r.opportunity.id, i]));
 
-  // Semantic cosines cluster tightly, so absolute value says little and
-  // "how far above this pool's average" says a lot.
+                                                                        
+                                                    
   const mean = rows.reduce((s, r) => s + r.semantic, 0) / rows.length;
   const variance = rows.reduce((s, r) => s + (r.semantic - mean) ** 2, 0) / rows.length;
   const sd = Math.sqrt(variance) || 1e-9;
@@ -376,7 +376,7 @@ export function hybridRank<T extends RankableOpportunity>(
   for (const r of rows) {
     const lexConfidence = saturate(r.lexical, LEXICAL_HALF_CONFIDENCE);
     const z = (r.semantic - mean) / sd;
-    const semConfidence = 1 / (1 + Math.exp(-1.4 * z)); // logistic on the z-score
+    const semConfidence = 1 / (1 + Math.exp(-1.4 * z));                           
     r.fused =
       LEXICAL_WEIGHT * lexConfidence +
       SEMANTIC_WEIGHT * semConfidence +
@@ -387,11 +387,11 @@ export function hybridRank<T extends RankableOpportunity>(
 }
 
 
-/**
- * Rank the whole catalog and return a diversified shortlist for the LLM.
- * Diversification caps how many rows any one category can contribute, so a
- * student does not get a shortlist of 120 scholarships and zero internships.
- */
+   
+                                                                         
+                                                                           
+                                                                             
+   
 export function shortlistOpportunities<T extends RankableOpportunity>(
   opps: T[],
   profile: RankProfile,
@@ -417,7 +417,7 @@ export function shortlistOpportunities<T extends RankableOpportunity>(
     used.set(key, n + 1);
     picked.push(o);
   }
-  // If caps starved the shortlist, refill by raw rank.
+                                                       
   for (const o of overflow) {
     if (picked.length >= limit) break;
     picked.push(o);

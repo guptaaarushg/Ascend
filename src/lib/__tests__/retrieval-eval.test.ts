@@ -1,13 +1,13 @@
-/**
- * Retrieval quality evaluation.
- *
- * These are not unit tests of code paths, they are offline evaluation of
- * recommendation quality against a hand-labeled validation set, run in CI so a
- * ranking regression fails the build the same way a broken function would.
- *
- * The thresholds below are the current committed floor. Raise them when the
- * ranker improves, never lower them to make a failure go away.
- */
+   
+                                
+  
+                                                                         
+                                                                               
+                                                                           
+  
+                                                                            
+                                                               
+   
 import { describe, expect, it } from "vitest";
 import { hybridRank, preRankScore, buildIdf, profileTerms, obviouslyIneligible } from "@/lib/matching";
 import { FIXTURE_CATALOG, LABELED_CASES } from "@/lib/eval/labeled-set";
@@ -19,7 +19,7 @@ function rankHybrid(profile: (typeof LABELED_CASES)[number]["profile"]) {
   return hybridRank(FIXTURE_CATALOG, profile).map((r) => r.opportunity.id);
 }
 
-/** Lexical-only baseline, i.e. the ranker before the semantic layer existed. */
+                                                                                
 function rankLexicalOnly(profile: (typeof LABELED_CASES)[number]["profile"]) {
   const candidates = FIXTURE_CATALOG.filter((o) => !obviouslyIneligible(o, profile));
   const idf = buildIdf(candidates);

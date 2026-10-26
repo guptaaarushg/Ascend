@@ -1,61 +1,61 @@
-/**
- * Hand-labeled validation set for retrieval quality.
- *
- * 32 student profiles written in the language students actually use ("I want to
- * build robots", "I want to be a nurse"), against a 44-program fixture catalog
- * written in the language program pages actually use. The labels are graded
- * relevance judgments made by hand:
- *
- *   2 = a counselor would put this in front of this student first
- *   1 = reasonable, would not be a mistake to show
- *   0 = not labeled, treated as irrelevant
- *
- * The point of the mismatch between the two vocabularies is that a pure keyword
- * ranker cannot pass this set. It is the regression test for the semantic layer.
- */
+   
+                                                     
+  
+                                                                                
+                                                                               
+                                                                            
+                                    
+  
+                                                                  
+                                                   
+                                           
+  
+                                                                                
+                                                                                 
+   
 
 import type { RankableOpportunity, RankProfile } from "@/lib/matching";
 
 export const FIXTURE_CATALOG: RankableOpportunity[] = [
-  // Robotics / hardware
+                        
   { id: "p01", title: "FIRST Tech Challenge Mentorship Grant", organization: "FIRST", category: "competition", eligibility: "Open to all high school students", description: "Team funding and mentorship for mechatronics build seasons, CAD, and autonomous control.", tags: ["ftc", "mechatronics"], related_skills: [], application_fee: 0 },
   { id: "p02", title: "VEX Worlds Travel Fund", organization: "REC Foundation", category: "competition", eligibility: "Open to all high school students", description: "Covers travel for qualifying VEX teams building autonomous scoring machines.", tags: ["vex"], related_skills: [], travel_required: true },
   { id: "p03", title: "Embedded Systems Summer Lab", organization: "State Polytechnic", category: "summer_program", eligibility: "Open to all high school students", description: "Arduino and Raspberry Pi firmware, sensor fusion, and drone flight controllers.", tags: ["embedded", "drone"], related_skills: [], application_fee: 0 },
-  // Software / AI
+                  
   { id: "p04", title: "Open Source Fellows", organization: "Code Commons", category: "internship", eligibility: "Open to all high school students", description: "Paid summer contributions to production repositories, code review, and algorithms practice.", tags: ["software"], related_skills: [], application_fee: 0 },
   { id: "p05", title: "Machine Learning Research Apprenticeship", organization: "University AI Institute", category: "research", eligibility: "Open to all high school students", description: "Neural network training, computer vision datasets, and a published poster.", tags: ["ml", "deep learning"], related_skills: [], application_fee: 0 },
   { id: "p06", title: "CyberPatriot Defense Academy", organization: "AFA", category: "competition", eligibility: "Open to all high school students", description: "Network defense drills, capture the flag rounds, and cryptography fundamentals.", tags: ["ctf"], related_skills: [] },
   { id: "p07", title: "Congressional App Challenge", organization: "US House of Representatives", category: "competition", eligibility: "Open to all high school students", description: "Build and submit an application, judged on ideology, impact, and technical structure.", tags: ["app"], related_skills: [], application_fee: 0 },
-  // Bio / medicine
+                   
   { id: "p08", title: "Hospital Clinical Shadowing Cohort", organization: "County Health System", category: "internship", eligibility: "Open to all high school students", description: "Rotations with physicians and nurses, patient-safety training, healthcare career pathways.", tags: ["clinical"], related_skills: [], application_fee: 0 },
   { id: "p09", title: "Molecular Genetics Summer Institute", organization: "Genome Center", category: "summer_program", eligibility: "Open to all high school students", description: "Wet lab work in cell culture, PCR, and genomics data analysis.", tags: ["genomics"], related_skills: [] },
   { id: "p10", title: "USABO Semifinalist Training Camp", organization: "Center for Excellence in Education", category: "competition", eligibility: "Open to all high school students", description: "Olympiad-level biology preparation in physiology, ecology, and molecular biology.", tags: ["usabo"], related_skills: [] },
   { id: "p11", title: "Future Nurses Scholarship", organization: "State Nursing Foundation", category: "scholarship", eligibility: "Open to all high school students", description: "Award for students entering nursing and allied healthcare programs.", tags: ["nursing"], related_skills: [], value_usd: 8000, application_fee: 0 },
   { id: "p12", title: "Neuroscience Brain Bee Regional", organization: "Society for Neuroscience", category: "competition", eligibility: "Open to all high school students", description: "Cognitive science and neurology question rounds with a lab tour.", tags: ["brain bee"], related_skills: [] },
-  // Physical sciences / math
+                             
   { id: "p13", title: "Astrophysics Observing Fellowship", organization: "Mountain Observatory", category: "research", eligibility: "Open to all high school students", description: "Telescope time, quantum optics seminars, and space mission data reduction.", tags: ["astronomy"], related_skills: [] },
   { id: "p14", title: "Chemistry Olympiad Prep Intensive", organization: "ACS", category: "competition", eligibility: "Open to all high school students", description: "Organic chemistry problem sets and materials lab technique for USNCO.", tags: ["usnco"], related_skills: [] },
   { id: "p15", title: "Number Theory Summer Seminar", organization: "Mathematics Institute", category: "summer_program", eligibility: "Open to all high school students", description: "Proof writing for AMC and AIME qualifiers, olympiad combinatorics.", tags: ["amc"], related_skills: [] },
-  // Environment / agriculture
+                              
   { id: "p16", title: "Climate Solutions Youth Corps", organization: "Green Futures", category: "internship", eligibility: "Open to all high school students", description: "Paid fieldwork on renewable installations, watershed conservation, and sustainability audits.", tags: ["climate"], related_skills: [], application_fee: 0 },
   { id: "p17", title: "Sustainable Agriculture Apprenticeship", organization: "Land Grant Extension", category: "internship", eligibility: "Open to all high school students", description: "Soil science, crop rotation, and farming technology on working farms.", tags: ["agriculture"], related_skills: [] },
-  // Law / policy / civics
+                          
   { id: "p18", title: "Senate Page Program", organization: "US Senate", category: "internship", eligibility: "Open to all high school students", description: "Legislative floor service, civics immersion, and government process training.", tags: ["government"], related_skills: [], application_fee: 0 },
   { id: "p19", title: "Youth Advocacy Legal Institute", organization: "Justice Project", category: "summer_program", eligibility: "Open to all high school students", description: "Mock trial, policy drafting, and legal research on juvenile justice.", tags: ["mock trial"], related_skills: [], application_fee: 0 },
   { id: "p20", title: "Model UN Global Conference Scholarship", organization: "UNA", category: "competition", eligibility: "Open to all high school students", description: "Delegate fees and travel for international diplomacy simulation.", tags: ["model un"], related_skills: [] },
-  // Business
+             
   { id: "p21", title: "Teen Founders Accelerator", organization: "Startup Guild", category: "summer_program", eligibility: "Open to all high school students", description: "Customer discovery, unit economics, and a demo day for student entrepreneurs.", tags: ["startup"], related_skills: [], application_fee: 0 },
   { id: "p22", title: "DECA Emerging Leader Award", organization: "DECA", category: "competition", eligibility: "Open to all high school students", description: "Marketing and finance case competition with a cash prize.", tags: ["deca"], related_skills: [] },
-  // Arts / writing
+                   
   { id: "p23", title: "Portfolio Studio Intensive", organization: "City Art League", category: "summer_program", eligibility: "Open to all high school students", description: "Drawing, sculpture, and graphic design critique toward an admissions portfolio.", tags: ["portfolio"], related_skills: [], application_fee: 0 },
   { id: "p24", title: "Documentary Film Lab", organization: "Independent Media Center", category: "summer_program", eligibility: "Open to all high school students", description: "Cinematography, editing, and animation for short nonfiction film.", tags: ["film"], related_skills: [] },
   { id: "p25", title: "Scholastic Writing Awards", organization: "Alliance for Young Artists and Writers", category: "competition", eligibility: "Open to all high school students", description: "National recognition for poetry, creative writing, and journalism portfolios.", tags: ["writing"], related_skills: [], application_fee: 0 },
   { id: "p26", title: "Youth Symphony Fellowship", organization: "Metro Symphony", category: "summer_program", eligibility: "Open to all high school students", description: "Orchestra seat, composition coaching, and instrument loan for young musicians.", tags: ["orchestra"], related_skills: [] },
-  // Trades / aviation / teaching
+                                 
   { id: "p27", title: "Registered Welding Pre-Apprenticeship", organization: "Trades Council", category: "internship", eligibility: "Open to all high school students", description: "Paid CTE pathway into welding and fabrication with certification testing.", tags: ["welding"], related_skills: [], application_fee: 0 },
   { id: "p28", title: "Young Aviators Flight Scholarship", organization: "Pilot Association", category: "scholarship", eligibility: "Open to all high school students", description: "Covers flight hours toward a private pilot certificate.", tags: ["pilot"], related_skills: [], value_usd: 12000 },
   { id: "p29", title: "Future Educators Summer Corps", organization: "Teach Forward", category: "internship", eligibility: "Open to all high school students", description: "Paid tutoring placements, curriculum design, and classroom instruction coaching.", tags: ["tutor"], related_skills: [], application_fee: 0 },
-  // Equity / need-based
+                        
   { id: "p30", title: "QuestBridge National College Match", organization: "QuestBridge", category: "scholarship", eligibility: "Open to all high school seniors", description: "Full four year scholarship to partner colleges for high achieving low income students.", tags: ["full ride"], related_skills: [], value_usd: 320000, application_fee: 0, underrepresented: true },
   { id: "p31", title: "Foster Youth Education and Training Voucher", organization: "State Child Welfare", category: "scholarship", eligibility: "Open to youth with foster care experience", description: "ETV funds and tuition fee waivers for current and former foster youth, plus campus support.", tags: ["etv", "foster"], related_skills: [], application_fee: 0 },
   { id: "p32", title: "SchoolHouse Connection Youth Scholarship", organization: "SchoolHouse Connection", category: "scholarship", eligibility: "Open to students experiencing homelessness", description: "Award and mentoring for unaccompanied homeless youth, McKinney-Vento connected.", tags: ["homeless"], related_skills: [], application_fee: 0 },
@@ -63,7 +63,7 @@ export const FIXTURE_CATALOG: RankableOpportunity[] = [
   { id: "p34", title: "First Generation Scholars Program", organization: "College Access Network", category: "scholarship", eligibility: "Open to first generation college students", description: "Need based award plus advising for students whose parents did not attend college.", tags: ["first-gen"], related_skills: [], application_fee: 0, value_usd: 20000 },
   { id: "p35", title: "Rural Scholars Leadership Award", organization: "Rural Futures Fund", category: "scholarship", eligibility: "Open to students from rural communities", description: "Award for students from small town and farming communities entering college.", tags: ["rural"], related_skills: [], application_fee: 0 },
   { id: "p36", title: "Pell Bridge Emergency Aid", organization: "Student Basic Needs Fund", category: "grant", eligibility: "Open to Pell eligible students", description: "Need based emergency grant covering food, housing, and transportation gaps.", tags: ["need based"], related_skills: [], application_fee: 0 },
-  // Distractors, plausible but off-topic
+                                         
   { id: "p37", title: "Marching Band Uniform Fund", organization: "Booster Club", category: "grant", eligibility: "Open to all high school students", description: "Uniform stipend for band members in good standing.", tags: [], related_skills: [] },
   { id: "p38", title: "Equestrian Riding Camp", organization: "Valley Stables", category: "summer_program", eligibility: "Open to all high school students", description: "Horsemanship instruction and stable management.", tags: [], related_skills: [], application_fee: 450 },
   { id: "p39", title: "Culinary Knife Skills Weekend", organization: "Culinary Guild", category: "summer_program", eligibility: "Open to all high school students", description: "Knife technique and plating for aspiring cooks.", tags: [], related_skills: [] },
@@ -79,7 +79,7 @@ const HS: RankProfile = { education_level: "high_school" };
 export type LabeledCase = {
   name: string;
   profile: RankProfile;
-  /** Graded relevance judgments, 2 = strong, 1 = plausible. */
+                                                               
   gains: Record<string, number>;
 };
 

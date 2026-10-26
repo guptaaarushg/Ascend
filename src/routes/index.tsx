@@ -46,7 +46,7 @@ const steps = [
 function Landing() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
-      {/* NAV */}
+      {         }
       <nav className="absolute inset-x-0 top-0 z-20 mx-auto flex max-w-screen-2xl items-center justify-between gap-4 px-5 py-5 text-primary-foreground sm:px-10 sm:py-7 lg:px-16">
         <span className="text-2xl font-serif font-semibold">Ascend</span>
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -59,7 +59,7 @@ function Landing() {
         </div>
       </nav>
 
-      {/* HERO */}
+      {          }
       <header className="relative flex min-h-[88vh] items-end overflow-hidden bg-foreground text-primary-foreground">
         <img src={studentHero} alt="Three students studying together at a table" width={740} height={451} className="absolute inset-0 size-full object-cover object-[62%_center]" />
         <div aria-hidden className="absolute inset-0 bg-[linear-gradient(90deg,color-mix(in_oklch,var(--foreground)_93%,transparent)_0%,color-mix(in_oklch,var(--foreground)_75%,transparent)_48%,color-mix(in_oklch,var(--foreground)_12%,transparent)_100%)]" />
@@ -95,7 +95,7 @@ function Landing() {
 
       <ImpactStrip />
 
-      {/* ORIGIN */}
+      {            }
       <section className="bg-peach-soft/30">
         <div className="max-w-screen-2xl mx-auto px-6 sm:px-10 lg:px-16 py-16 sm:py-24 lg:py-32">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-20">
@@ -138,7 +138,7 @@ function Landing() {
         </div>
       </section>
 
-      {/* FEATURES */}
+      {              }
       <section className="max-w-screen-2xl mx-auto px-6 sm:px-10 lg:px-16 py-16 sm:py-24 lg:py-32">
         <p className="text-sm uppercase tracking-[0.2em] text-peach-deep mb-4 font-semibold">What Ascend Does</p>
         <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-semibold leading-[1.05] mb-12 sm:mb-20 max-w-4xl">
@@ -169,7 +169,7 @@ function Landing() {
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
+      {                  }
       <section className="max-w-screen-2xl mx-auto px-6 sm:px-10 lg:px-16 py-16 sm:py-24 lg:py-32 border-t border-border">
         <p className="text-sm uppercase tracking-[0.2em] text-peach-deep mb-4 font-semibold">The Process</p>
         <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-serif font-semibold leading-[1.05] mb-12 sm:mb-20">
@@ -192,7 +192,7 @@ function Landing() {
         </div>
       </section>
 
-      {/* IMPACT */}
+      {            }
       <section className="bg-peach-soft/20">
         <div className="max-w-screen-2xl mx-auto px-6 sm:px-10 lg:px-16 py-16 sm:py-24 lg:py-32">
           <div className="max-w-5xl text-center mx-auto">
@@ -203,7 +203,7 @@ function Landing() {
         </div>
       </section>
 
-      {/* FOOTER */}
+      {            }
       <footer className="max-w-screen-2xl mx-auto px-6 sm:px-10 lg:px-16 py-14 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4">
         <span className="text-2xl font-serif font-semibold tracking-tight">Ascend</span>
         <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8">
@@ -225,9 +225,9 @@ type Impact = {
   zero_barrier_users: number;
 };
 
-/**
- * Aggregate, anonymized totals only. No per-student data ever reaches this strip.
- */
+   
+                                                                                  
+   
 function ImpactStrip() {
   const [impact, setImpact] = useState<Impact | null>(null);
   const [catalog, setCatalog] = useState<number | null>(null);
@@ -248,7 +248,7 @@ function ImpactStrip() {
         if (row && !summary.error) setImpact(row as Impact);
         if (typeof count.data === "number" && !count.error) setCatalog(count.data);
       } catch {
-        // Keep the last successful totals if a refresh fails.
+                                                              
       } finally {
         fetching = false;
       }
@@ -266,8 +266,8 @@ function ImpactStrip() {
     };
   }, []);
 
-  // Inclusive beta totals supplied by the owner. The SQL migration counts only
-  // first-time activity after activation; existing records are already included.
+                                                                               
+                                                                                 
   const BETA_BASELINE = { students: 1_134, matches: 60_206, applied: 2_998, accepted: 982 };
   const live: Impact = impact ?? {
     students_served: BETA_BASELINE.students,

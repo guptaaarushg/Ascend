@@ -139,13 +139,13 @@ function RootComponent() {
         userId = nextUserId;
         return;
       }
-      // Auth can announce the same user again after focus or session checks.
-      // Reloading guards for that event can start another session check.
+                                                                             
+                                                                         
       if (event === "TOKEN_REFRESHED" ||
           (nextUserId === userId && event !== "USER_UPDATED")) return;
       userId = nextUserId;
       clearTimeout(pendingRefresh);
-      // Leave the auth callback before starting work that reads auth again.
+                                                                            
       pendingRefresh = setTimeout(() => {
         if (event === "SIGNED_OUT") {
           void queryClient.cancelQueries();
@@ -163,17 +163,17 @@ function RootComponent() {
     };
   }, [router, queryClient]);
 
-  // Offline shell for students on shared or unreliable connections.
+                                                                    
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     if (import.meta.env.DEV) {
-      // In development, remove any old worker so pages always load fresh.
+                                                                          
       navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => r.unregister()));
       return;
     }
     const onLoad = () => {
       navigator.serviceWorker.register("/sw.js").catch(() => {
-        /* offline support is a bonus, never a blocker */
+                                                         
       });
     };
     if (document.readyState === "complete") onLoad();

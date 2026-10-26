@@ -21,7 +21,7 @@ type Resource = {
   desc: string;
   url: string;
   badge: string;
-  // Personalization tags. `always` shows for everyone.
+                                                       
   tags: Array<
     | "always"
     | "low_income"
@@ -219,7 +219,7 @@ function SupportPage() {
 
     setProfile(prof as ProfileLite | null);
 
-    // Prefer user's actual matched underrepresented opportunities; fall back to library.
+                                                                                         
     const matchedUnderrep = (matched ?? [])
       .map((m: any) => m.opportunity)
       .filter((o: any) => o && o.underrepresented);
@@ -255,7 +255,7 @@ function SupportPage() {
     if (tier === "low") { t.add("low_income"); t.add("first_gen"); }
     if (gradeTag) t.add(gradeTag);
     if (stem) t.add("stem");
-    // Assume test prep relevant for high schoolers
+                                                   
     if (gradeTag === "high_school" || gradeTag === "senior") t.add("test_prep");
     return t;
   }, [tier, gradeTag, stem]);
@@ -263,7 +263,7 @@ function SupportPage() {
   const sortedResources = useMemo(() => {
     return [...RESOURCES]
       .map((r) => ({ r, s: scoreResource(r, profileTags) }))
-      // Never show items with zero overlap AND no "always" tag
+                                                               
       .filter(({ r, s }) => s > 0 || r.tags.includes("always"))
       .sort((a, b) => b.s - a.s)
       .map(({ r }) => r);

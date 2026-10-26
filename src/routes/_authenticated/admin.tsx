@@ -29,7 +29,7 @@ const empty = {
   id: "", title: "", organization: "", category: "scholarship", description: "",
   eligibility: "", location: "", remote: false, deadline: "", value_usd: "",
   url: "", tags: "", related_skills: "", pathway_unlocks: "", competitiveness: "medium", underrepresented: false,
-  // Real cost of applying. Blank means unknown, never assume free.
+                                                                   
   application_fee: "", fee_waiver_available: "unknown", travel_required: "unknown",
   equipment_needed: "", format: "unknown",
 };

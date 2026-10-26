@@ -1,10 +1,10 @@
--- Corrected inclusive beta totals, supplied by the project owner:
--- 1,134 onboarded students; 60,206 student/opportunity matches; 982 acceptances.
--- Run once in Supabase SQL Editor BEFORE deploying the frontend. Rerunning does not reset totals.
--- Existing records are included in the starting totals, not added to them.
+                                                                  
+                                                                                 
+                                                                                                  
+                                                                           
 BEGIN;
 
--- Freeze writes briefly while taking the initial inventory and installing triggers.
+                                                                                    
 LOCK TABLE public.profiles, public.matches, public.user_opportunities
   IN SHARE ROW EXCLUSIVE MODE;
 
@@ -22,8 +22,8 @@ INSERT INTO ascend_internal.impact_totals (singleton, students, matches, accepte
 VALUES (true, 1134, 60206, 982)
 ON CONFLICT (singleton) DO NOTHING;
 
--- No foreign keys: preserve deduplication history when an operational record is removed.
--- IDs stay private; the public RPC exposes aggregate totals only.
+                                                                                         
+                                                                  
 CREATE TABLE IF NOT EXISTS ascend_internal.impact_seen (
   metric text NOT NULL CHECK (metric IN ('students', 'matches', 'accepted')),
   user_id uuid NOT NULL,
@@ -34,7 +34,7 @@ ALTER TABLE ascend_internal.impact_totals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ascend_internal.impact_seen ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON ALL TABLES IN SCHEMA ascend_internal FROM PUBLIC, anon, authenticated;
 
--- Snapshot existing entities without increasing the supplied inclusive baseline.
+                                                                                 
 INSERT INTO ascend_internal.impact_seen (metric, user_id, opportunity_id)
 SELECT 'students', id, '00000000-0000-0000-0000-000000000000'::uuid
 FROM public.profiles WHERE onboarded
@@ -80,7 +80,7 @@ BEGIN
   VALUES (event_metric, event_user, event_opportunity)
   ON CONFLICT DO NOTHING;
   IF FOUND THEN
-    -- Atomic increments; simultaneous requests cannot overwrite each other's counts.
+                                                                                     
     UPDATE ascend_internal.impact_totals
     SET students = students + CASE WHEN event_metric = 'students' THEN 1 ELSE 0 END,
         matches = matches + CASE WHEN event_metric = 'matches' THEN 1 ELSE 0 END,
@@ -107,8 +107,8 @@ CREATE TRIGGER ascend_count_acceptances
 AFTER INSERT OR UPDATE OF status, user_id, opportunity_id ON public.user_opportunities
 FOR EACH ROW EXECUTE FUNCTION ascend_internal.record_impact_event();
 
--- Keep the existing RPC's name, result types, and column order for compatibility.
--- Applications started and zero-barrier metrics retain their existing database logic.
+                                                                                  
+                                                                                      
 CREATE OR REPLACE FUNCTION public.impact_summary()
 RETURNS TABLE (
   total_matches integer,
@@ -134,5 +134,5 @@ GRANT EXECUTE ON FUNCTION public.impact_summary() TO anon, authenticated;
 
 COMMIT;
 
--- Expected initial values: students_served=1134, total_matches=60206, total_accepted=982.
+                                                                                          
 SELECT * FROM public.impact_summary();

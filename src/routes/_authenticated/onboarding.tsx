@@ -48,7 +48,7 @@ const STEPS = [
 ] as const;
 
 function csv(s: string): string[] {
-  // Accept commas, semicolons, slashes, newlines, bullets, pipes, " and ", " & "
+                                                                                 
   return s
     .split(/[,;\n\r\u2022|/]+|\s+and\s+|\s+&\s+/i)
     .map((x) => x.replace(/^[\s\-•*\.]+|[\s\-•*\.]+$/g, "").trim())

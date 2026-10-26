@@ -1,12 +1,12 @@
-/*
- * Ascend service worker.
- *
- * Students on shared or spotty connections should still get something useful.
- * Strategy:
- *  - Navigations: network first, fall back to the cached shell, then /offline.
- *  - Static assets: stale while revalidate.
- * Nothing personal is ever cached: API and auth calls always go to the network.
- */
+  
+                         
+  
+                                                                              
+            
+                                                                               
+                                            
+                                                                                
+   
 const CACHE = "ascend-v2";
 const SHELL = ["/", "/offline.html", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
@@ -30,7 +30,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
-  // Never cache anything that could contain a student's data.
+                                                              
   if (url.pathname.startsWith("/api") || url.pathname.startsWith("/_serverFn")) return;
 
   if (req.mode === "navigate") {
@@ -40,8 +40,8 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Only cache files whose names never change (hashed build assets and icons).
-  // Caching anything else can serve a stale, blank app after an update.
+                                                                               
+                                                                        
   const immutable = url.pathname.startsWith("/assets/") || /\.(png|svg|ico|webmanifest|woff2?)$/.test(url.pathname);
   if (!immutable) return;
 

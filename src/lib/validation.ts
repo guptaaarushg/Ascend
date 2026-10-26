@@ -1,13 +1,13 @@
 import { z } from "zod";
 
-/**
- * Shared input rules. These mirror the CHECK constraints in the database,
- * so the browser gives a friendly message and the server still refuses
- * anything oversized or malformed even if the UI is bypassed.
- */
+   
+                                                                          
+                                                                       
+                                                              
+   
 
-// Strip control characters and zero-width joiners people can paste in to
-// smuggle markup or break layout, then collapse whitespace.
+                                                                         
+                                                            
 export function sanitizeText(input: unknown): string {
   return String(input ?? "")
     // eslint-disable-next-line no-control-regex
@@ -71,7 +71,7 @@ export const inviteCodeSchema = z.preprocess(
   z.string().regex(/^[A-Z0-9-]{4,20}$/, "That invite code does not look right"),
 );
 
-/** First readable error from a failed parse. */
+                                                
 export function firstError(err: z.ZodError): string {
   return err.issues[0]?.message ?? "Please check your input";
 }

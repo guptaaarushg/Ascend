@@ -1,47 +1,47 @@
-/**
- * Local semantic layer for hybrid retrieval.
- *
- * WHY THIS EXISTS
- * Stage-one retrieval used to be pure lexical (tf-idf). That fails on the most
- * common thing a student actually writes: "I want to build robots" never
- * overlaps with "FIRST Tech Challenge mechatronics mentorship", so the best
- * program in the catalog stays invisible.
- *
- * WHY IT IS NOT AN EMBEDDING API
- * Every request to an external embedding service is a dependency that can rate
- * limit, cost money, drift between model versions, and take the whole feed down
- * with it. Ascend runs on Cloudflare Workers where a cold call is also latency
- * a student feels. So the semantic layer is computed in-process and is fully
- * deterministic:
- *
- *   1. A hand-built concept ontology maps natural student language onto the
- *      vocabulary programs actually use ("build robots" -> robotics, mechatronics,
- *      FIRST, FTC, VEX, embedded).
- *   2. Text is projected into a fixed 256-dimensional space with the hashing
- *      trick (FNV-1a hash + signed accumulation over unigrams, bigrams, and
- *      activated concepts). This is a random-projection sketch of the bag of
- *      concepts, the same idea behind feature hashing in production ranking
- *      systems, minus the model weights.
- *   3. Similarity is plain cosine on L2-normalized vectors.
- *
- * The result is semantic recall with zero network calls, zero API keys, and a
- * fully reproducible score, which also makes the offline evaluation harness in
- * src/lib/eval possible.
- */
+   
+                                             
+  
+                  
+                                                                               
+                                                                         
+                                                                            
+                                          
+  
+                                 
+                                                                               
+                                                                                
+                                                                               
+                                                                             
+                 
+  
+                                                                            
+                                                                                   
+                                   
+                                                                             
+                                                                            
+                                                                             
+                                                                            
+                                         
+                                                            
+  
+                                                                              
+                                                                               
+                         
+   
 
 export const EMBEDDING_DIM = 1024;
 
-/**
- * Concept ontology. Left side is the canonical concept, right side is the
- * surface language that should activate it, from either a student profile or a
- * program listing. Written by hand from the catalog's actual vocabulary.
- *
- * Rule learned the hard way: no ambiguous single words. "first" used to live
- * under robotics and quietly tagged a violinist ("first chair") as a robotics
- * student, and "internship"/"fellowship" appear in half the catalog's titles,
- * so they carried no information at all. Ambiguous surface forms only appear
- * here as multi-word phrases.
- */
+   
+                                                                          
+                                                                               
+                                                                         
+  
+                                                                             
+                                                                              
+                                                                              
+                                                                             
+                              
+   
 export const CONCEPT_ONTOLOGY: Record<string, string[]> = {
   robotics: ["robot", "robots", "robotics", "mechatronics", "first robotics", "first tech challenge", "ftc", "frc", "vex", "botball", "autonomous", "drone", "drones", "embedded", "arduino", "raspberry"],
   computer_science: ["coding", "code", "programming", "software", "developer", "computer", "cs", "usaco", "hackathon", "app", "web", "algorithms", "data structures", "python", "java", "javascript"],
@@ -75,7 +75,7 @@ export const CONCEPT_ONTOLOGY: Record<string, string[]> = {
   military: ["veteran", "military", "rotc", "army", "navy", "air force", "service member"],
 };
 
-/** Reverse index: surface phrase -> concepts it activates. */
+                                                              
 const PHRASE_TO_CONCEPTS = (() => {
   const m = new Map<string, string[]>();
   for (const [concept, phrases] of Object.entries(CONCEPT_ONTOLOGY)) {
@@ -91,11 +91,11 @@ const PHRASE_TO_CONCEPTS = (() => {
 
 const MAX_PHRASE_WORDS = 3;
 
-/**
- * Crude English plural stripping. Students write "laws", "robots", "startups";
- * the ontology stores the singular. A stemmer library would be another
- * dependency for what is three rules.
- */
+   
+                                                                               
+                                                                       
+                                      
+   
 function singularize(phrase: string): string {
   return phrase.replace(/\b([a-z]{3,}?)(?:ies|es|s)\b/g, (m, stem) =>
     m.endsWith("ies") ? `${stem}y` : stem,
@@ -110,11 +110,11 @@ function words(text: string): string[] {
     .filter(Boolean);
 }
 
-/**
- * Which concepts a piece of text activates, and how strongly. Multi-word
- * phrases are matched with a sliding window so "machine learning" is one signal
- * rather than two weak ones.
- */
+   
+                                                                         
+                                                                                
+                             
+   
 export function conceptsOf(text: string): Map<string, number> {
   const w = words(text);
   const hits = new Map<string, number>();
@@ -124,7 +124,7 @@ export function conceptsOf(text: string): Map<string, number> {
       const phrase = w.slice(i, i + n).join(" ");
       const concepts = PHRASE_TO_CONCEPTS.get(phrase) ?? PHRASE_TO_CONCEPTS.get(singularize(phrase));
       if (!concepts) continue;
-      // Longer phrases are more specific evidence.
+                                                   
       const weight = n;
       for (const c of concepts) hits.set(c, (hits.get(c) ?? 0) + weight);
       break;
@@ -133,7 +133,7 @@ export function conceptsOf(text: string): Map<string, number> {
   return hits;
 }
 
-/** FNV-1a, 32-bit. Stable across runtimes, which keeps evaluation reproducible. */
+                                                                                   
 function hash32(s: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) {
@@ -146,24 +146,24 @@ function hash32(s: string): number {
 function project(vec: Float64Array, token: string, weight: number) {
   const h = hash32(token);
   const idx = h % EMBEDDING_DIM;
-  // Sign bit from a second hash keeps collisions from systematically inflating
-  // similarity, the standard signed hashing trick.
+                                                                               
+                                                   
   const sign = (hash32(`s:${token}`) & 1) === 0 ? 1 : -1;
   vec[idx] += sign * weight;
 }
 
-/**
- * Deterministic dense sketch of a piece of text: unigrams, bigrams, and
- * ontology concepts, hashed into EMBEDDING_DIM dimensions and L2 normalized.
- */
+   
+                                                                        
+                                                                             
+   
 export function embed(text: string, conceptBoost = 6): Float64Array {
   const vec = new Float64Array(EMBEDDING_DIM);
   const w = words(text);
   for (let i = 0; i < w.length; i++) {
     const t = w[i]!;
-    // Raw words are deliberately quiet. They are mostly boilerplate ("students",
-    // "program", "apply"), and letting them dominate is exactly the failure the
-    // concept layer exists to fix. Concepts carry the signal, words break ties.
+                                                                                 
+                                                                                
+                                                                                
     if (t.length > 2) project(vec, t, 0.35);
     if (i + 1 < w.length) project(vec, `${t}_${w[i + 1]}`, 0.25);
   }
@@ -183,10 +183,10 @@ export function cosine(a: Float64Array, b: Float64Array): number {
   return dot;
 }
 
-/**
- * Concept-level overlap, reported separately from the hashed cosine because it
- * is human-readable and used for explanations ("matched on: robotics, research").
- */
+   
+                                                                               
+                                                                                  
+   
 export function sharedConcepts(a: string, b: string): string[] {
   const ca = conceptsOf(a);
   const cb = conceptsOf(b);

@@ -77,9 +77,9 @@ function ProfilePage() {
   if (!form) return <div className="container mx-auto max-w-3xl px-4 py-8"><div className="h-96 rounded-xl bg-muted animate-pulse" /></div>;
 
   const save = async () => {
-    // Validate + sanitize everything before it leaves the browser. The same
-    // limits are enforced by database constraints, so this is a friendly
-    // message, not the actual gate.
+                                                                            
+                                                                         
+                                    
     const parsed = profileSchema.safeParse(form);
     if (!parsed.success) {
       toast.error(firstError(parsed.error));
@@ -87,7 +87,7 @@ function ProfilePage() {
     }
     const clean = parsed.data as Record<string, any>;
 
-    // Family-friendly guard on all free-text fields
+                                                    
     const textFields: [string, string][] = [
       ["Display name", clean.display_name],
       ["City / region", clean.location],
@@ -262,7 +262,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div className="space-y-1.5"><Label>{label}</Label>{children}</div>;
 }
 
-/** Join a counselor or nonprofit cohort with an invite code. */
+                                                                
 function CohortCard() {
   const [code, setCode] = useState("");
   const [joined, setJoined] = useState<string | null>(null);
@@ -328,7 +328,7 @@ function CohortCard() {
   );
 }
 
-/** Opt-in deadline digest by email. */
+                                       
 function NotificationCard() {
   const [enabled, setEnabled] = useState(false);
   const [frequency, setFrequency] = useState<"weekly" | "daily">("weekly");

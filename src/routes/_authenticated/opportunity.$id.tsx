@@ -484,10 +484,10 @@ const LANGUAGES = [
   { id: "pt", label: "Portuguese · Português", locale: "pt-BR" },
 ] as const;
 
-/**
- * Read the parent note aloud in the family's language. Some parents read very
- * little even in their first language, so text alone is not enough.
- */
+   
+                                                                              
+                                                                    
+   
 function ListenButton({ text, locale }: { text: string; locale: string }) {
   const [speaking, setSpeaking] = useState(false);
   const supported = typeof window !== "undefined" && "speechSynthesis" in window;

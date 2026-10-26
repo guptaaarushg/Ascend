@@ -1,9 +1,9 @@
 import { cn } from "@/lib/utils";
 
-/**
- * Brand wordmark. A simple serif wordmark, no logo asset until the user
- * uploads one. Intentionally restrained.
- */
+   
+                                                                        
+                                         
+   
 export function Logo({
   className,
   showWordmark = true,

@@ -1,4 +1,4 @@
--- 1. Hidden cost transparency
+                              
 ALTER TABLE public.opportunities
   ADD COLUMN IF NOT EXISTS application_fee numeric,
   ADD COLUMN IF NOT EXISTS fee_waiver_available boolean,
@@ -10,7 +10,7 @@ ALTER TABLE public.opportunities
   ADD CONSTRAINT opportunities_format_check
   CHECK (format IS NULL OR format IN ('virtual','in_person','hybrid'));
 
--- 2. Expanded optional identity flags + cohort + sticky filter
+                                                               
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS foster_youth_status boolean,
   ADD COLUMN IF NOT EXISTS housing_insecure_status boolean,
@@ -19,10 +19,10 @@ ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS zero_barrier_filter_enabled boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS zero_barrier_filter_used boolean NOT NULL DEFAULT false;
 
--- 3. Counselor role
+                    
 ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'counselor';
 
--- 4. Notification preferences
+                              
 CREATE TABLE IF NOT EXISTS public.notification_preferences (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL UNIQUE,
@@ -49,7 +49,7 @@ CREATE TRIGGER notification_preferences_touch
   BEFORE UPDATE ON public.notification_preferences
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
--- 5. Cohorts
+             
 CREATE TABLE IF NOT EXISTS public.cohorts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   counselor_id uuid NOT NULL,
@@ -77,7 +77,7 @@ CREATE TRIGGER cohorts_touch
   BEFORE UPDATE ON public.cohorts
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
--- 6. Student joins a cohort by code (no direct read of cohorts needed)
+                                                                       
 CREATE OR REPLACE FUNCTION public.redeem_cohort_code(_code text)
 RETURNS uuid
 LANGUAGE plpgsql
@@ -102,7 +102,7 @@ $$;
 REVOKE ALL ON FUNCTION public.redeem_cohort_code(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.redeem_cohort_code(text) TO authenticated;
 
--- 7. Aggregated, anonymized cohort stats for counselors
+                                                        
 CREATE OR REPLACE FUNCTION public.counselor_cohort_stats(_cohort_id uuid)
 RETURNS TABLE (
   students_onboarded integer,
@@ -144,7 +144,7 @@ $$;
 REVOKE ALL ON FUNCTION public.counselor_cohort_stats(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.counselor_cohort_stats(uuid) TO authenticated;
 
--- 8. Public, fully anonymized impact metrics
+                                             
 CREATE OR REPLACE FUNCTION public.impact_summary()
 RETURNS TABLE (
   total_matches integer,

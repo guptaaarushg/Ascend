@@ -1,7 +1,7 @@
-/**
- * Deadline digest builder. Runs from a cron-triggered route with no user
- * session, so it uses the admin client and scopes every read by user id itself.
- */
+   
+                                                                         
+                                                                                
+   
 
 export type DigestPayload = {
   userId: string;
@@ -24,10 +24,10 @@ function daysUntil(d: string) {
   return Math.ceil((new Date(d).getTime() - Date.now()) / 86400000);
 }
 
-/**
- * Build one student's digest: top 3 strong matches they have not saved yet,
- * plus anything due in the next 14 days.
- */
+   
+                                                                            
+                                         
+   
 export async function buildDigestForUser(userId: string): Promise<DigestPayload | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -131,7 +131,7 @@ export async function buildDigestForUser(userId: string): Promise<DigestPayload 
   };
 }
 
-/** Every user due for a digest right now, based on their saved frequency. */
+                                                                             
 export async function usersDueForDigest(frequency: "daily" | "weekly") {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const cutoffHours = frequency === "daily" ? 20 : 24 * 6.5;

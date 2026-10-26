@@ -41,7 +41,7 @@ function AuthLayout() {
     return () => { active = false; };
   }, [location.pathname]);
 
-  // Redirect new users to onboarding
+                                     
   useEffect(() => {
     if (!signOutPending.current && onboarded === false && location.pathname !== "/onboarding" && location.pathname !== "/profile") {
       navigate({ to: "/onboarding", replace: true });

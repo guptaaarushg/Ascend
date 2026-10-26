@@ -1,4 +1,4 @@
-// Family-friendly content filter. Note: "shit" is intentionally allowed.
+                                                                         
 const VULGAR_WORDS = [
   "fuck", "fucking", "fucker", "fuckin", "motherfucker", "mofo",
   "bitch", "bitches", "biatch",
@@ -19,7 +19,7 @@ const VULGAR_WORDS = [
   "damn", "goddamn",
 ];
 
-// Normalize common obfuscation: leetspeak, punctuation, spaces
+                                                               
 function normalize(s: string) {
   return s
     .toLowerCase()

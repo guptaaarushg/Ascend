@@ -1,10 +1,10 @@
-/**
- * "What it actually takes", the hidden costs that quietly lock students out.
- *
- * A program can be free on paper and still be out of reach: a $75 application
- * fee, a plane ticket, or a laptop you do not own. These helpers surface that
- * up front instead of burying it in a description paragraph.
- */
+   
+                                                                             
+  
+                                                                              
+                                                                              
+                                                             
+   
 
 export type BarrierFields = {
   application_fee?: number | null;
@@ -17,7 +17,7 @@ export type BarrierFields = {
 export type BarrierFact = {
   label: string;
   value: string;
-  /** "good" = no barrier, "warn" = a real cost, "unknown" = not stated on the source page. */
+                                                                                              
   tone: "good" | "warn" | "unknown";
 };
 
@@ -28,11 +28,11 @@ export function formatFormat(format?: string | null): string | null {
   return null;
 }
 
-/**
- * A "$0 barrier" opportunity: no application fee to pay (or a waiver exists)
- * and no travel required. Unknown fee data does not qualify, because telling a
- * student something is free when we do not know is worse than saying nothing.
- */
+   
+                                                                             
+                                                                               
+                                                                              
+   
 export function isZeroBarrier(o: BarrierFields | null | undefined): boolean {
   if (!o) return false;
   const feeClear = o.application_fee === 0 || o.fee_waiver_available === true;

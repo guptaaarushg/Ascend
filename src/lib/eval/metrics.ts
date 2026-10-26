@@ -1,12 +1,12 @@
-/**
- * Ranking metrics for the retrieval evaluation harness.
- *
- * Unit tests tell you the code runs. These tell you the recommendations are
- * good. Every metric here is the standard information-retrieval definition so
- * the numbers mean the same thing they mean in a paper.
- */
+   
+                                                        
+  
+                                                                            
+                                                                              
+                                                        
+   
 
-/** Graded relevance: 2 = clearly a program this student should see, 1 = plausible, 0 = not relevant. */
+                                                                                                        
 export type Gains = Record<string, number>;
 
 export function precisionAtK(ranked: string[], gains: Gains, k: number): number {
@@ -22,7 +22,7 @@ export function recallAtK(ranked: string[], gains: Gains, k: number): number {
   return relevant.filter((id) => top.has(id)).length / relevant.length;
 }
 
-/** Discounted cumulative gain with the standard 2^gain - 1 formulation. */
+                                                                           
 export function dcg(ranked: string[], gains: Gains, k: number): number {
   let sum = 0;
   ranked.slice(0, k).forEach((id, i) => {
@@ -32,7 +32,7 @@ export function dcg(ranked: string[], gains: Gains, k: number): number {
   return sum;
 }
 
-/** NDCG@k: DCG normalized by the best possible ordering, so 1.0 is a perfect rank. */
+                                                                                      
 export function ndcgAtK(ranked: string[], gains: Gains, k: number): number {
   const ideal = Object.entries(gains)
     .filter(([, g]) => g > 0)
@@ -43,7 +43,7 @@ export function ndcgAtK(ranked: string[], gains: Gains, k: number): number {
   return dcg(ranked, gains, k) / best;
 }
 
-/** Mean reciprocal rank of the first relevant result. */
+                                                         
 export function reciprocalRank(ranked: string[], gains: Gains): number {
   for (let i = 0; i < ranked.length; i++) {
     if ((gains[ranked[i]!] ?? 0) > 0) return 1 / (i + 1);

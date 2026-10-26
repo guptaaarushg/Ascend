@@ -1,5 +1,5 @@
 
--- ROLES
+        
 create type public.app_role as enum ('admin', 'user');
 
 create table public.user_roles (
@@ -33,7 +33,7 @@ as $$
   )
 $$;
 
--- PROFILES (life profile)
+                          
 create table public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
@@ -65,7 +65,7 @@ create policy "profiles select own" on public.profiles for select to authenticat
 create policy "profiles insert own" on public.profiles for insert to authenticated with check (id = auth.uid());
 create policy "profiles update own" on public.profiles for update to authenticated using (id = auth.uid());
 
--- Auto-create profile + default role on signup
+                                               
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -89,12 +89,12 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
 
--- OPPORTUNITIES
+                
 create table public.opportunities (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   organization text not null,
-  category text not null, -- scholarship, grant, internship, competition, mentorship, job, research, benefit, community, funding
+  category text not null,                                                                                                       
   description text not null,
   eligibility text not null,
   location text,
@@ -106,7 +106,7 @@ create table public.opportunities (
   related_skills text[] not null default '{}',
   related_orgs text[] not null default '{}',
   pathway_unlocks text[] not null default '{}',
-  competitiveness text, -- low, medium, high
+  competitiveness text,                     
   underrepresented boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -126,7 +126,7 @@ for all to authenticated
 using (public.has_role(auth.uid(), 'admin'))
 with check (public.has_role(auth.uid(), 'admin'));
 
--- MATCHES (AI-cached scores)
+                             
 create table public.matches (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -148,7 +148,7 @@ create policy "matches insert own" on public.matches for insert to authenticated
 create policy "matches update own" on public.matches for update to authenticated using (user_id = auth.uid());
 create policy "matches delete own" on public.matches for delete to authenticated using (user_id = auth.uid());
 
--- USER_OPPORTUNITIES (saved/applied/accepted)
+                                              
 create type public.opportunity_status as enum ('saved', 'applied', 'accepted', 'declined');
 
 create table public.user_opportunities (
@@ -172,7 +172,7 @@ create policy "user_opps insert own" on public.user_opportunities for insert to 
 create policy "user_opps update own" on public.user_opportunities for update to authenticated using (user_id = auth.uid());
 create policy "user_opps delete own" on public.user_opportunities for delete to authenticated using (user_id = auth.uid());
 
--- updated_at trigger helper
+                            
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql as $$
 begin new.updated_at = now(); return new; end;

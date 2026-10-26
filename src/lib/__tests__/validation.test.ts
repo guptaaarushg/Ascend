@@ -5,7 +5,7 @@ import { firstError, inviteCodeSchema, profileSchema, sanitizeText } from "../va
 describe("containsProfanity", () => {
   it("catches slurs and vulgar words", () => {
     expect(containsProfanity("what the fuck")).toBe(true);
-    expect(containsProfanity("you are a b1tch")).toBe(true); // leetspeak is normalized
+    expect(containsProfanity("you are a b1tch")).toBe(true);                           
     expect(containsProfanity("f@ggot")).toBe(true);
   });
 

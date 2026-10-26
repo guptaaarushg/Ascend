@@ -37,7 +37,7 @@ function useSceneColors() {
   return colors;
 }
 
-/** Spiral path that rises upward, like a staircase of years. */
+                                                                
 function buildPoints(count: number) {
   const pts: THREE.Vector3[] = [];
   for (let i = 0; i < count; i++) {
@@ -48,7 +48,7 @@ function buildPoints(count: number) {
   return pts;
 }
 
-/** Glowing tube path; the completed portion fills in smoothly. */
+                                                                  
 function PathTube({ curve, progress, colors }: { curve: THREE.Curve<THREE.Vector3>; progress: number; colors: SceneColors }) {
   const base = useMemo(() => new THREE.TubeGeometry(curve, 240, 0.03, 10, false), [curve]);
   const filled = useMemo(() => new THREE.TubeGeometry(curve, 240, 0.055, 12, false), [curve]);
@@ -70,7 +70,7 @@ function PathTube({ curve, progress, colors }: { curve: THREE.Curve<THREE.Vector
   );
 }
 
-/** Light pulses travelling along the path. */
+                                              
 function FlowParticles({ curve, color, count = 40 }: { curve: THREE.Curve<THREE.Vector3>; color: string; count?: number }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
@@ -163,7 +163,7 @@ function MilestoneNode({
         <torusGeometry args={[1.0, 0.008, 8, 96]} />
         <meshBasicMaterial color={colors.secondary} toneMapped={false} />
       </mesh>
-      {/* Projection beam down to the base plate */}
+      {                                            }
       <mesh ref={beam} position-y={-(position.y + 2.2) / 2}>
         <cylinderGeometry args={[0.02, 0.5, position.y + 2.2, 24, 1, true]} />
         <meshBasicMaterial color={colors.primary} transparent opacity={0} side={THREE.DoubleSide} depthWrite={false} />
@@ -187,7 +187,7 @@ function MilestoneNode({
   );
 }
 
-/** Projector base: rotating rings and a scanning disc. */
+                                                          
 function ProjectorBase({ colors }: { colors: SceneColors }) {
   const outer = useRef<THREE.Group>(null);
   const scan = useRef<THREE.Mesh>(null);
@@ -222,7 +222,7 @@ function ProjectorBase({ colors }: { colors: SceneColors }) {
   );
 }
 
-/** Flies the camera to the active milestone, then hands control back to the user. */
+                                                                                     
 function CameraRig({ target, enabled }: { target: THREE.Vector3; enabled: boolean }) {
   const { camera, controls } = useThree() as unknown as { camera: THREE.PerspectiveCamera; controls: { target: THREE.Vector3; update: () => void } | null };
   const flying = useRef(0);
@@ -382,7 +382,7 @@ export function HologramRoadmap({ milestones, opportunityTitles = {} }: { milest
           <RoadmapScene milestones={milestones} active={active} onSelect={go} autoRotate={playing && !reduceMotion} colors={colors} reduceMotion={reduceMotion} />
         </Canvas>
 
-        {/* Floating detail panel that re-animates on every step */}
+        {                                                          }
         <div key={active} className="pointer-events-none absolute bottom-3 left-3 right-3 animate-fade-in sm:bottom-5 sm:left-5 sm:right-auto sm:max-w-sm">
           <div className="rounded-xl border p-4 backdrop-blur-md" style={{ background: "rgba(20,17,15,0.72)", borderColor: "rgba(224,90,71,0.45)", color: "#fdfbf7" }}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em]" style={{ color: colors.primary }}>

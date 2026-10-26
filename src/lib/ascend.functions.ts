@@ -28,7 +28,7 @@ function scrubDashesDeep<T>(v: T): T {
   return v;
 }
 
-/** Errors worth retrying: transient network faults, rate limits, upstream 5xx. */
+                                                                                  
 class RetryableAIError extends Error {
   retryAfterMs?: number;
   constructor(message: string, retryAfterMs?: number) {
@@ -63,7 +63,7 @@ function getAIProviders(): AIProvider[] {
   }
   if (process.env.OPENROUTER_API_KEY) {
     const configured = process.env.OPENROUTER_MODEL?.trim();
-    // The old free GPT-OSS endpoint was retired. Do not silently use its paid slug.
+                                                                                    
     const model = !configured || configured === "openai/gpt-oss-120b:free"
       ? "openrouter/free"
       : configured;
@@ -75,7 +75,7 @@ function getAIProviders(): AIProvider[] {
       jsonMode: model === "openrouter/free",
     };
     providers.push(openrouter);
-    // A specifically selected free model can disappear; retain a free fallback.
+                                                                                
     if (model !== "openrouter/free" && model.endsWith(":free")) {
       providers.push({ ...openrouter, model: "openrouter/free", jsonMode: true });
     }
@@ -143,18 +143,18 @@ async function callAIOnce(body: Record<string, unknown>, provider: AIProvider) {
   return json;
 }
 
-/**
- * Read the structured result of an AI call. Tool calls were converted to
- * plain JSON-in-text requests (see callAIOnce), so this accepts either a
- * real tool_calls payload or a JSON object in the message content.
- */
+   
+                                                                         
+                                                                         
+                                                                   
+   
 function parseAIToolJson(ai: any): any {
   const msg = ai?.choices?.[0]?.message;
   const toolArgs = msg?.tool_calls?.[0]?.function?.arguments;
   if (typeof toolArgs === "string" && toolArgs.trim()) return JSON.parse(toolArgs);
   let text = typeof msg?.content === "string" ? msg.content.trim() : "";
   if (!text) return {};
-  // Strip markdown fences and any prose around the JSON object.
+                                                                
   text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
@@ -194,7 +194,7 @@ async function callAI(rawBody: Record<string, unknown>) {
   throw lastError instanceof Error ? lastError : new Error("Matching service failed");
 }
 
-/** Same call, but returns null instead of throwing, for batch work that degrades. */
+                                                                                     
 async function callAIOrNull(body: Record<string, unknown>) {
   try {
     return await callAI(body);
@@ -255,9 +255,9 @@ function detectIncomeTier(p: any): "low" | "middle" | "high" | "unknown" {
   return "unknown";
 }
 
-/**
- * Generate matches for the current user across all opportunities.
- */
+   
+                                                                  
+   
 export const generateMatches = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ rescoreAll: z.boolean().optional() }).optional().parse(input))
@@ -270,11 +270,11 @@ export const generateMatches = createServerFn({ method: "POST" })
     if (pErr) throw new Error(pErr.message);
     if (!profile) throw new Error("Profile not found. Complete onboarding first.");
 
-    // Expired programs never match: a passed deadline is not an opportunity.
+                                                                             
     const today = todayPacific();
 
-    // Stage 1, RETRIEVAL. Pull the entire approved, live catalog (paged, because
-    // it is well past a thousand rows) instead of an arbitrary first 300.
+                                                                                 
+                                                                          
     const catalog: any[] = [];
     const pageSize = 1000;
     const fetchCatalogPage = async (page: number) => {
@@ -287,8 +287,8 @@ export const generateMatches = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       return data ?? [];
     };
-    // Fetch nearby pages together, retaining the same catalog order and limit.
-    // A speculative page beyond the end must not cause an unnecessary failure.
+                                                                               
+                                                                               
     let catalogComplete = false;
     for (let start = 0; start < 8 && !catalogComplete;) {
       const count = start === 0 ? 1 : Math.min(3, 8 - start);
@@ -307,8 +307,8 @@ export const generateMatches = createServerFn({ method: "POST" })
     }
     if (!catalog.length) return { matched: 0 };
 
-    // Stage 2, PRE-RANK. Score every row locally, drop the impossible ones, and
-    // keep a category-diversified shortlist small enough to read carefully.
+                                                                                
+                                                                            
     const { data: existing } = await supabase.from("matches").select("opportunity_id").eq("user_id", userId);
     const seen = new Set((existing ?? []).map((r) => r.opportunity_id as string));
     const fresh = catalog.filter((o) => !seen.has(o.id));
@@ -322,8 +322,8 @@ export const generateMatches = createServerFn({ method: "POST" })
     const chunkSize = 24;
     const results: { opportunity_id: string; eligible?: boolean; score: number; reasoning: string }[] = [];
 
-    // Stage 3, RERANK. Assess the same shortlist in batches of 24.
-    // Independent batches run together; provider retries and fallback stay intact.
+                                                                   
+                                                                                   
     const chunks: any[][] = [];
     for (let i = 0; i < opps.length; i += chunkSize) chunks.push(opps.slice(i, i + chunkSize));
 
@@ -395,8 +395,8 @@ REASONING: write it only when eligible or future AND the score is 70 or higher; 
       });
 
 
-      // One bad batch must not take down the whole feed. A failed chunk is
-      // counted, logged, and left to the local fallback below.
+                                                                           
+                                                               
       if (!ai) {
         failedChunks++;
         return;
@@ -421,15 +421,15 @@ REASONING: write it only when eligible or future AND the score is 70 or higher; 
       await Promise.all(chunks.slice(i, i + concurrency).map((c, j) => scoreChunk(c, i + j)));
     }
 
-    /**
-     * GRACEFUL DEGRADATION.
-     *
-     * If the model was unreachable for every batch, the honest options are an
-     * error page or the local ranking. Stage 1 already computed a real, fully
-     * offline score for each program, so the feed falls back to it: the student
-     * still gets ranked, eligibility-filtered opportunities, just without the
-     * written "why you" paragraph. The app does not go dark because an API did.
-     */
+       
+                            
+      
+                                                                              
+                                                                              
+                                                                                
+                                                                              
+                                                                                
+       
     let degraded = false;
     if (results.length === 0 && chunks.length > 0) {
       degraded = true;
@@ -440,8 +440,8 @@ REASONING: write it only when eligible or future AND the score is 70 or higher; 
         results.push({
           opportunity_id: r.opportunity.id,
           eligible: true,
-          // Unverified local scores are capped at 79 so they show as "close
-          // matches" and never claim the verified 80+ band. Ordering is kept.
+                                                                            
+                                                                              
           score: Math.round(70 + 9 * (best > 0 ? Math.min(1, r.fused / best) : 0)),
           reasoning:
             "Matched on your profile by Ascend's on-device ranking while the personalized write-up is temporarily unavailable. Refresh your feed later to see the full explanation.",
@@ -493,11 +493,11 @@ REASONING: write it only when eligible or future AND the score is 70 or higher; 
       const { error: upErr } = await supabase.from("matches").upsert(dedupedRows, { onConflict: "user_id,opportunity_id" });
       if (upErr) throw new Error(upErr.message);
     }
-    // Expire matches older than 30 days so closed or changed programs drop off.
+                                                                                
     const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     await supabase.from("matches").delete().eq("user_id", userId).lt("generated_at", cutoff);
 
-    // Remove previously-stored matches the user is not eligible for and not a future recommendation.
+                                                                                                     
     const dropIds = [...new Set(drop)].filter((id) => !byId.has(id));
     if (dropIds.length) {
       await supabase.from("matches").delete().eq("user_id", userId).in("opportunity_id", dropIds);
@@ -523,9 +523,9 @@ REASONING: write it only when eligible or future AND the score is 70 or higher; 
   });
 
 
-/**
- * Application assistant - non-streaming chat.
- */
+   
+                                              
+   
 export const assistantChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({
@@ -575,9 +575,9 @@ Today is ${todayPacific()}.`;
     return { content };
   });
 
-/**
- * Ascend Coach - general Q&A chat about opportunities, applications, careers, college, financial aid, etc.
- */
+   
+                                                                                                           
+   
 export const coachChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({
@@ -588,7 +588,7 @@ export const coachChat = createServerFn({ method: "POST" })
   }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    // Family-friendly guard: intercept vulgar user messages before hitting the model.
+                                                                                      
     const lastUser = [...data.messages].reverse().find((m) => m.role === "user");
     if (lastUser && containsProfanity(lastUser.content)) {
       return { content: `${FAMILY_FRIENDLY_MESSAGE} I'm here to help with scholarships, school, careers, and financial aid whenever you're ready.` };
@@ -633,9 +633,9 @@ Today is ${todayPacific()}.`;
     return { content };
   });
 
-/**
- * Discover live opportunities from the web (Firecrawl + AI extraction), then ingest + re-match.
- */
+   
+                                                                                                
+   
 export const discoverOpportunities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -651,7 +651,7 @@ export const discoverOpportunities = createServerFn({ method: "POST" })
     const { data: profile } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
     if (!profile) throw new Error("Complete onboarding first.");
 
-    // Rate limit: each run fans out to several web searches plus an extraction call.
+                                                                                     
     const COOLDOWN_MS = 10 * 60 * 1000;
     const last = (profile as { last_discovered_at?: string | null }).last_discovered_at;
     if (last) {
@@ -723,7 +723,7 @@ export const discoverOpportunities = createServerFn({ method: "POST" })
       return { discovered: 0, message: "No web results. Try again in a moment." };
     }
 
-    // Deduplicate by URL and check what we already have
+                                                        
     const seen = new Set<string>();
     const unique = searchResults.filter((r) => {
       if (!r.url || seen.has(r.url)) return false;
@@ -742,7 +742,7 @@ export const discoverOpportunities = createServerFn({ method: "POST" })
       return { discovered: 0, message: "Already in your library, refreshing matches." };
     }
 
-    // Use AI to structure the scraped results into opportunity rows.
+                                                                     
     const sys = `Extract real opportunities (scholarships, internships, summer programs, research, tutoring, volunteer work, grants, competitions, mentorships, jobs) from the provided web search snippets. Return only legitimate, currently-open opportunities you can clearly identify. Skip aggregator landing pages, blog roundups, and broken results. Be conservative, quality over quantity.`;
     const userMsg = `Extract opportunities. For each: title, organization, one-paragraph description, who qualifies, a category from [scholarship, grant, internship, competition, mentorship, job, research, government_benefit, tax_credit, community_resource, entrepreneurial, summer_program, volunteer, tutoring], approximate dollar value if mentioned (number only, no currency), whether it's friendly to underrepresented / low-income students, and 3-6 short tags.
 
@@ -828,7 +828,7 @@ ${fresh.map((r, i) => `[${i}] ${r.url}\nTitle: ${r.title}\nDesc: ${r.description
           tags: Array.isArray(it.tags) ? it.tags.slice(0, 10).map((t: any) => String(t).slice(0, 50)) : [],
           url: src.url,
           remote: it.format === "virtual",
-          // Cost fields default to null (unknown) rather than a guess.
+                                                                       
           application_fee: typeof it.application_fee === "number" && isFinite(it.application_fee)
             ? Math.max(0, Math.round(it.application_fee)) : null,
           fee_waiver_available: typeof it.fee_waiver_available === "boolean" ? it.fee_waiver_available : null,
@@ -849,9 +849,9 @@ ${fresh.map((r, i) => `[${i}] ${r.url}\nTitle: ${r.title}\nDesc: ${r.description
     return { discovered: rows.length, pendingReview: rows.length };
   });
 
-/**
- * Acceptance Probability Engine, estimates likelihood of acceptance with reasoning + action plan.
- */
+   
+                                                                                                  
+   
 export const acceptanceAnalysis = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({ opportunityId: z.string().uuid() }).parse(input))
@@ -865,7 +865,7 @@ export const acceptanceAnalysis = createServerFn({ method: "POST" })
     if (!opp) throw new Error("Opportunity not found");
     if (!profile) throw new Error("Complete onboarding first");
 
-    // Profile completeness signal
+                                  
     const fields = ["age_range","education_level","location","academic_interests","career_interests","skills","extracurriculars","certifications","languages","professional_experience","socioeconomic_info","long_term_goals","intended_major","dream_colleges","target_colleges","college_application_year"] as const;
     const filled = fields.filter((f) => {
       const v = (profile as any)[f];
@@ -968,9 +968,9 @@ ${profileSummary(profile)}`;
     };
   });
 
-/**
- * Life Path Simulator, generates 2-3 alternate pathways with milestones linked to real opportunities.
- */
+   
+                                                                                                      
+   
 export function createFallbackLifePaths(goal: string, field: string, years: number) {
   const steps = Array.from({ length: years }, (_, index) => {
     const year = index + 1;
@@ -1045,14 +1045,14 @@ export const lifePathSimulate = createServerFn({ method: "POST" })
       years: z.number().int().min(1).max(10),
     }).parse(input);
 
-    // Guardrails against gibberish (judges love to break inputs).
+                                                                  
     const looksRealText = (s: string) => {
       const t = s.trim();
       if (t.length < 2) return false;
-      if (!/[aeiouy]/i.test(t)) return false;                 // must contain a vowel
-      if (!/^[\p{L}\p{M}0-9 ,.&'/+\-()]+$/u.test(t)) return false; // only letters/common punct
-      if (/(.)\1{3,}/.test(t)) return false;                  // no "aaaa" runs
-      // reject single token of >=5 consonant-heavy chars with no recognizable word shape
+      if (!/[aeiouy]/i.test(t)) return false;                                        
+      if (!/^[\p{L}\p{M}0-9 ,.&'/+\-()]+$/u.test(t)) return false;                             
+      if (/(.)\1{3,}/.test(t)) return false;                                   
+                                                                                         
       const tokens = t.split(/\s+/);
       const bad = tokens.some(tok => tok.length >= 5 && (tok.match(/[aeiouy]/gi)?.length ?? 0) / tok.length < 0.15);
       if (bad) return false;
@@ -1322,9 +1322,9 @@ ${oppCatalog}`;
     };
   });
 
-/**
- * Translate an opportunity's title, description, and eligibility for a family member.
- */
+   
+                                                                                      
+   
 export const translateOpportunity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({
@@ -1389,10 +1389,10 @@ export const translateOpportunity = createServerFn({ method: "POST" })
   });
 
 
-/**
- * Build the signed-in student's own deadline digest, so they can preview
- * exactly what will land in their inbox before turning it on.
- */
+   
+                                                                         
+                                                              
+   
 export const generateDigestEmail = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

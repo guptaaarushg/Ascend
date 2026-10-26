@@ -57,7 +57,7 @@
 :root {
   --radius: 0.75rem;
 
-  /* Warm Tech Elite palette */
+                               
   --background: #FDFBF7;
   --foreground: #1A1A1A;
 
@@ -66,15 +66,15 @@
   --popover: #FFFFFF;
   --popover-foreground: #1A1A1A;
 
-  /* Deep terracotta primary */
+                               
   --primary: #E05A47;
   --primary-foreground: #FFFFFF;
 
-  /* Soft sage secondary */
+                           
   --secondary: oklch(0.93 0.025 140);
   --secondary-foreground: oklch(0.28 0.04 140);
 
-  /* Warm peach accent */
+                         
   --accent: #F4C9A8;
   --accent-foreground: #7A2E1E;
 
@@ -94,7 +94,7 @@
   --input: #ECE5DA;
   --ring: #E05A47;
 
-  /* Terracotta-tinted elevation */
+                                   
   --shadow-elegant: 0 4px 20px rgba(224, 90, 71, 0.06);
   --shadow-elegant-lg: 0 12px 40px rgba(224, 90, 71, 0.08);
   --hologram-primary: #E05A47;
@@ -188,7 +188,7 @@
 
 }
 
-/* Horizontal nav scroller on small screens, without a visible scrollbar. */
+                                                                            
 @utility no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;

@@ -1,9 +1,9 @@
 import { barrierFacts, isZeroBarrier, type BarrierFields } from "@/lib/barriers";
 
-/**
- * "What it actually takes", surfaced on cards and detail pages so the real
- * cost of applying is never buried in a paragraph.
- */
+   
+                                                                           
+                                                   
+   
 export function BarrierRow({
   opportunity,
   compact = false,
