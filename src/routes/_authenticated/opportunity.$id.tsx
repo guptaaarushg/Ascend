@@ -474,15 +474,14 @@ function Metric({ label, value, accent, accentClass }: { label: string; value: s
 }
 
 const LANGUAGES = [
-  { id: "es", label: "Español", locale: "es-ES" },
-  { id: "zh-Hans", label: "中文 (普通话)", locale: "zh-CN" },
-  { id: "zh-Hant", label: "中文 (粵語)", locale: "zh-HK" },
-  { id: "hi", label: "हिन्दी", locale: "hi-IN" },
-  { id: "fr", label: "Français", locale: "fr-FR" },
-  { id: "vi", label: "Tiếng Việt", locale: "vi-VN" },
-  { id: "tl", label: "Tagalog", locale: "fil-PH" },
-  { id: "ar", label: "العربية", locale: "ar-SA" },
-  { id: "ko", label: "한국어", locale: "ko-KR" },
+  { id: "zh-Hans", label: "Mandarin Chinese · 普通话", locale: "zh-CN" },
+  { id: "hi", label: "Hindi · हिन्दी", locale: "hi-IN" },
+  { id: "es", label: "Spanish · Español", locale: "es-ES" },
+  { id: "fr", label: "French · Français", locale: "fr-FR" },
+  { id: "ar", label: "Modern Standard Arabic · العربية", locale: "ar-SA" },
+  { id: "bn", label: "Bengali · বাংলা", locale: "bn-BD" },
+  { id: "ru", label: "Russian · Русский", locale: "ru-RU" },
+  { id: "pt", label: "Portuguese · Português", locale: "pt-BR" },
 ] as const;
 
 /**
@@ -546,7 +545,7 @@ function TranslateCard({ opportunityId }: { opportunityId: string }) {
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2 items-center">
           <Select value={lang} onValueChange={(v) => setLang(v as any)}>
-            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-80"><SelectValue /></SelectTrigger>
             <SelectContent>
               {LANGUAGES.map((l) => <SelectItem key={l.id} value={l.id}>{l.label}</SelectItem>)}
             </SelectContent>

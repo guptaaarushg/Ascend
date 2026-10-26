@@ -1303,7 +1303,7 @@ export const translateOpportunity = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({
     opportunityId: z.string().uuid(),
-    language: z.enum(["es", "zh-Hant", "vi", "zh-Hans", "tl", "ko", "hi", "fr", "ar"]),
+    language: z.enum(["zh-Hans", "hi", "es", "fr", "ar", "bn", "ru", "pt"]),
   }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
@@ -1316,14 +1316,13 @@ export const translateOpportunity = createServerFn({ method: "POST" })
 
     const langNames: Record<string, string> = {
       es: "Spanish",
-      "zh-Hant": "Traditional Chinese (Cantonese-speaking families)",
-      "zh-Hans": "Simplified Chinese (Mandarin-speaking families)",
+      "zh-Hans": "Mandarin Chinese (write in Simplified Chinese)",
       hi: "Hindi",
       fr: "French",
       ar: "Arabic (write right to left, in Modern Standard Arabic)",
-      vi: "Vietnamese",
-      tl: "Tagalog",
-      ko: "Korean",
+      bn: "Bengali",
+      ru: "Russian",
+      pt: "Portuguese",
     };
 
     const sys = `You are a translator helping a first-generation student explain an opportunity to a parent or guardian. Translate the provided fields to ${langNames[data.language]}. Use warm, plain language a parent without higher-education background can understand. Preserve dollar amounts, proper names of organizations, and deadline-related words.`;
