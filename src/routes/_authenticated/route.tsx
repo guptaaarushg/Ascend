@@ -2,7 +2,8 @@ import { createFileRoute, Outlet, redirect, Link, useNavigate, useLocation } fro
 import { supabase } from "@/integrations/supabase/client";
 import { Compass, MessageSquare, Route as RouteIcon, UserRound, LogOut, Shield, Heart, Bookmark } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -21,30 +22,46 @@ function AuthLayout() {
   const location = useLocation();
   const [isAdmin, setIsAdmin] = useState(false);
   const [onboarded, setOnboarded] = useState<boolean | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const signOutPending = useRef(false);
 
   useEffect(() => {
+    let active = true;
     (async () => {
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+      if (!active || signOutPending.current || !userData.user) return;
       const [{ data: roles }, { data: profile }] = await Promise.all([
         supabase.from("user_roles").select("role").eq("user_id", userData.user.id),
         supabase.from("profiles").select("onboarded").eq("id", userData.user.id).maybeSingle(),
       ]);
+      if (!active || signOutPending.current) return;
       setIsAdmin(!!roles?.some((r) => r.role === "admin"));
       setOnboarded(profile?.onboarded ?? false);
     })();
+    return () => { active = false; };
   }, [location.pathname]);
 
   // Redirect new users to onboarding
   useEffect(() => {
-    if (onboarded === false && location.pathname !== "/onboarding" && location.pathname !== "/profile") {
+    if (!signOutPending.current && onboarded === false && location.pathname !== "/onboarding" && location.pathname !== "/profile") {
       navigate({ to: "/onboarding", replace: true });
     }
   }, [onboarded, location.pathname, navigate]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    navigate({ to: "/auth", replace: true });
+    if (signOutPending.current) return;
+    signOutPending.current = true;
+    setSigningOut(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      await navigate({ to: "/auth", replace: true });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Sign out failed. Please try again.");
+    } finally {
+      signOutPending.current = false;
+      setSigningOut(false);
+    }
   };
 
     const navItems = [
@@ -78,7 +95,7 @@ function AuthLayout() {
                 <span className="hidden sm:inline">{item.label}</span>
               </Link>
             ))}
-            <Button variant="ghost" size="sm" onClick={handleSignOut} className="ml-2" aria-label="Sign out">
+            <Button variant="ghost" size="sm" onClick={handleSignOut} disabled={signingOut} className="ml-2" aria-label={signingOut ? "Signing out" : "Sign out"} aria-busy={signingOut}>
               <LogOut className="size-4" />
             </Button>
           </nav>

@@ -131,11 +131,36 @@ function RootComponent() {
   const router = useRouter();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      router.invalidate();
-      queryClient.invalidateQueries();
+    let userId: string | null = null;
+    let pendingRefresh: ReturnType<typeof setTimeout> | undefined;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextUserId = session?.user.id ?? null;
+      if (event === "INITIAL_SESSION") {
+        userId = nextUserId;
+        return;
+      }
+      // Auth can announce the same user again after focus or session checks.
+      // Reloading guards for that event can start another session check.
+      if (event === "TOKEN_REFRESHED" ||
+          (nextUserId === userId && event !== "USER_UPDATED")) return;
+      userId = nextUserId;
+      clearTimeout(pendingRefresh);
+      // Leave the auth callback before starting work that reads auth again.
+      pendingRefresh = setTimeout(() => {
+        if (event === "SIGNED_OUT") {
+          void queryClient.cancelQueries();
+          queryClient.clear();
+        }
+        void router.invalidate().catch((error) => console.error("Auth route refresh failed", error));
+        if (event !== "SIGNED_OUT") {
+          void queryClient.invalidateQueries().catch((error) => console.error("Auth data refresh failed", error));
+        }
+      }, 0);
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(pendingRefresh);
+      subscription.unsubscribe();
+    };
   }, [router, queryClient]);
 
   // Offline shell for students on shared or unreliable connections.

@@ -14,6 +14,9 @@ import { containsProfanity, FAMILY_FRIENDLY_MESSAGE } from "@/lib/profanity";
 import { profileSchema, firstError, inviteCodeSchema } from "@/lib/validation";
 
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const EDU_LEVELS = ["Middle school", "High school", "Undergraduate"];
 
 function autoCap(s: string) {
   return s
@@ -143,7 +146,12 @@ function ProfilePage() {
           <Field label="Display name"><Input value={form.display_name} onChange={(e) => set("display_name", e.target.value)} /></Field>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Age range"><Input value={form.age_range} onChange={(e) => set("age_range", e.target.value)} /></Field>
-            <Field label="Education"><Input value={form.education_level} onChange={(e) => set("education_level", e.target.value)} /></Field>
+            <Field label="Education">
+              <Select value={form.education_level} onValueChange={(value) => set("education_level", value)}>
+                <SelectTrigger><SelectValue placeholder="Select education level" /></SelectTrigger>
+                <SelectContent>{EDU_LEVELS.map((level) => <SelectItem key={level} value={level}>{level}</SelectItem>)}</SelectContent>
+              </Select>
+            </Field>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="City / region"><Input value={form.location} onChange={(e) => set("location", e.target.value)} /></Field>

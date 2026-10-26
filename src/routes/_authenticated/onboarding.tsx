@@ -38,7 +38,7 @@ type ProfileForm = {
 };
 
 const AGE_RANGES = ["Under 16", "16, 18", "19, 22", "23, 29", "30, 39", "40, 49", "50+"];
-const EDU_LEVELS = ["Middle school", "High school", "Undergraduate", "Graduate", "PhD / Doctorate", "Working professional", "Career changer"];
+const EDU_LEVELS = ["Middle school", "High school", "Undergraduate"];
 
 const STEPS = [
   { id: "basics", label: "About you" },
